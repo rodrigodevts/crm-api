@@ -114,6 +114,13 @@ Para Gupshup especificamente, contratos críticos estão em `docs/integrations/g
 
 18. **Bot NÃO é bloqueado por working hours.** Bot responde sempre. Working hours aplica apenas em transferência bot→humano e em ticket sem bot.
 
+### Git / Branch protection
+
+19. **Branch `main` é protegida.** Push direto vai falhar.
+20. **Toda mudança vai em branch separada** com prefixo: `chore/x`, `feat/x`, `fix/x`, `docs/x`, `refactor/x`, `test/x`.
+21. **Merge sempre via PR.** Workflow: criar branch → commitar → push da branch → abrir PR → aguardar CI verde → merge.
+22. **Nunca tentar `git push` na `main`** — comece criando a branch antes do primeiro commit.
+
 ---
 
 ## 5. Workflow padrão (com Superpowers)
@@ -184,6 +191,7 @@ Estes são os erros mais comuns que Claude Code comete. Evite explicitamente:
 Quando trabalhando dentro destas pastas, leia também o `CLAUDE.md` específico delas:
 
 **Backend (`crm-api/`):**
+
 - `src/modules/CLAUDE.md` — convenções de módulos
 - `src/modules/tickets/CLAUDE.md` — regras específicas de Ticket
 - `src/modules/bot-engine/CLAUDE.md` — regras do Bot Engine
@@ -191,6 +199,7 @@ Quando trabalhando dentro destas pastas, leia também o `CLAUDE.md` específico 
 - `prisma/CLAUDE.md` — convenções de schema e migrations
 
 **Frontend (`crm-web/`):**
+
 - `components/CLAUDE.md` — convenções de componentes
 - `app/CLAUDE.md` — convenções de rotas e layouts
 - `lib/generated/CLAUDE.md` — aviso de "código gerado, não editar"
@@ -205,7 +214,7 @@ Hierarquia de busca:
 
 1. **Audit da feature** em `crm-specs/audits/` — primeira consulta
 2. **Spec descritiva do sistema atual** em `crm-specs/areas/` — comportamento atual
-3. **Chatwoot** clonado localmente — referência arquitetural
+3. **Chatwoot** clonado localmente em `/home/rodrigo-digigov/referencias/chatwoot` — referência arquitetural **READ-ONLY**. NUNCA modifique, crie ou delete arquivos nesta pasta. Use apenas para consulta de padrões de modelagem.
 4. **Doc oficial** da lib (Prisma, NestJS, Zod, etc) — nunca chutar API
 5. **Pergunta ao humano** — se nada acima resolver
 
@@ -226,6 +235,7 @@ Verifique:
 - [ ] Multi-tenant checklist passou (releia se modificou queries)
 
 Reporte ao humano:
+
 - O que foi feito
 - O que ficou pendente
 - Decisões tomadas que não estavam no plano (se houve)
