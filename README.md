@@ -1,5 +1,8 @@
 # crm-api
 
+[![CI](https://github.com/rodrigodevts/crm-api/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/rodrigodevts/crm-api/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
+
 Backend do **DigiChat** — CRM omnichannel WhatsApp multi-tenant.
 
 Stack: NestJS 11 + Fastify + Zod + Pino. Prisma, BullMQ, Socket.IO entram nas próximas etapas da Fase 0.
@@ -17,7 +20,7 @@ Licença: AGPL-3.0-or-later.
 ## Setup local
 
 ```bash
-# 1. Dependências
+# 1. Dependências (script `prepare` instala os git hooks via Lefthook)
 pnpm install
 
 # 2. Infra (postgres, redis, minio)
@@ -35,14 +38,30 @@ pnpm start:dev
 
 A app valida `.env` no boot e falha cedo com lista de erros se algo estiver faltando.
 
+### Git hooks (Lefthook)
+
+`pnpm install` roda `lefthook install` automaticamente via script `prepare`. Hooks instalados:
+
+- **pre-commit:** ESLint + Prettier nos arquivos staged + `pnpm typecheck`
+- **pre-push:** `pnpm test`
+
+Para pular um hook pontualmente:
+
+```bash
+LEFTHOOK=0 git commit -m "wip"
+LEFTHOOK=0 git push
+```
+
+Use com parcimônia. CI roda os mesmos checks e bloqueia merge.
+
 ## Endpoints disponíveis nesta etapa
 
-| URL                                  | Descrição                                    |
-| ------------------------------------ | -------------------------------------------- |
-| `GET  /health`                       | Liveness/readiness (sem auth, sem prefixo)   |
-| `GET  /api/v1/docs`                  | UI interativa (Scalar)                       |
-| `GET  /api/v1/openapi.json`          | OpenAPI 3 (consumido pelo Kubb no `crm-web`) |
-| `GET  /api/v1/openapi.yaml`          | OpenAPI 3 em YAML                            |
+| URL                         | Descrição                                    |
+| --------------------------- | -------------------------------------------- |
+| `GET  /health`              | Liveness/readiness (sem auth, sem prefixo)   |
+| `GET  /api/v1/docs`         | UI interativa (Scalar)                       |
+| `GET  /api/v1/openapi.json` | OpenAPI 3 (consumido pelo Kubb no `crm-web`) |
+| `GET  /api/v1/openapi.yaml` | OpenAPI 3 em YAML                            |
 
 ## Comandos
 
@@ -54,10 +73,14 @@ pnpm start:prod     # roda dist/main.js
 
 pnpm test           # vitest run
 pnpm test:watch     # vitest
+pnpm test:cov       # cobertura
+pnpm test:e2e       # e2e (requer postgres+redis via docker compose)
 
 pnpm lint           # eslint
+pnpm lint:fix       # eslint --fix
 pnpm typecheck      # tsc --noEmit
 pnpm format         # prettier --write
+pnpm format:check   # prettier --check (usado em CI)
 ```
 
 ## Estrutura
