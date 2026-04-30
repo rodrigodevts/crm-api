@@ -37,7 +37,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       requestId: request.id,
     };
 
-    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+    if (status >= 500) {
       this.logger.error(
         {
           requestId: request.id,
