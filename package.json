@@ -46,7 +46,7 @@
     "@nestjs/schematics": "^11.1.0",
     "@nestjs/testing": "^11.1.19",
     "@swc/core": "^1.15.32",
-    "@types/node": "^22.19.17",
+    "@types/node": "^25.6.0",
     "@types/supertest": "^7.2.0",
     "@vitest/ui": "^4.1.5",
     "eslint": "^9.39.4",
