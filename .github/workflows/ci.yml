@@ -32,9 +32,7 @@ jobs:
       - name: Cache build output
         uses: actions/cache@v5
         with:
-          path: |
-            dist
-            tsconfig.build.tsbuildinfo
+          path: dist
           key: ${{ runner.os }}-build-${{ hashFiles('pnpm-lock.yaml', 'tsconfig*.json', 'src/**/*.ts') }}
           restore-keys: |
             ${{ runner.os }}-build-
