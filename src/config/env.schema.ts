@@ -24,7 +24,11 @@ export const envSchema = z.object({
   TEMPLATE_SYNC_CRON: z.string().default('0 3 * * *'),
   WEBHOOK_DELIVERY_MAX_RETRIES: z.coerce.number().int().nonnegative().default(5),
 
-  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_DSN: z
+    .string()
+    .optional()
+    .transform((v) => (v === '' ? undefined : v))
+    .pipe(z.string().url().optional()),
 });
 
 export type Env = z.infer<typeof envSchema>;
