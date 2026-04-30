@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: lint • typecheck • test • build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Cache build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            dist
+            tsconfig.build.tsbuildinfo
+          key: ${{ runner.os }}-build-${{ hashFiles('pnpm-lock.yaml', 'tsconfig*.json', 'src/**/*.ts') }}
+          restore-keys: |
+            ${{ runner.os }}-build-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Start postgres + redis
+        run: |
+          docker compose up -d postgres redis
+          docker compose ps
+
+      - name: Wait for services to be healthy
+        run: |
+          for service in postgres redis; do
+            for i in {1..30}; do
+              status=$(docker inspect --format='{{.State.Health.Status}}' "digichat-$service" 2>/dev/null || echo "starting")
+              if [ "$status" = "healthy" ]; then
+                echo "$service is healthy"
+                break
+              fi
+              if [ "$i" -eq 30 ]; then
+                echo "$service failed to become healthy"
+                docker compose logs "$service"
+                exit 1
+              fi
+              sleep 2
+            done
+          done
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: E2E tests
+        if: hashFiles('vitest.e2e.config.ts') != ''
+        run: pnpm test:e2e
+
+      - name: Build
+        run: pnpm build
+
+      - name: Stop docker compose
+        if: always()
+        run: docker compose down -v
