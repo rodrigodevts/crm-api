@@ -1,0 +1,13 @@
+// DigiChat — schema central
+// Convenções obrigatórias: ver prisma/CLAUDE.md
+// Princípio multi-tenant: companyId em toda tabela exceto Plan.
+// IDs: UUID v7 (ordenável temporalmente) via @default(uuid(7)).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

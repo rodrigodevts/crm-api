@@ -24,7 +24,16 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "g:feature": "nest g --collection ./schematics/collection.json feature"
+    "g:feature": "nest g --collection ./schematics/collection.json feature",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset",
+    "db:studio": "prisma studio",
+    "test:schema": "vitest run -c vitest.schema.config.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.19",

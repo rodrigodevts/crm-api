@@ -25,8 +25,8 @@
 ### IDs
 
 - UUID v7 (ordenável temporalmente)
-- Default: `@default(uuid(7))` (precisa de extensão Prisma)
-- Tipo: `String @id`
+- Default: `@default(uuid(7))` — nativo no Prisma 5.14+, gerado client-side, **sem extensão Postgres necessária**
+- Tipo: `String @id @db.Uuid`
 
 ### Timestamps
 
@@ -59,12 +59,14 @@ pnpm prisma migrate dev --name nome_descritivo
 ```
 
 Nomenclatura:
+
 - `add_tickets_table`
 - `add_resolved_by_to_ticket`
 - `rename_queue_to_department`
 - `drop_legacy_field_x`
 
 **Nunca:**
+
 - `update_schema` (vago)
 - `fix` (vago)
 - nomes em pt-BR (mantém en por consistência)
@@ -97,6 +99,7 @@ ALTER TABLE "Department" RENAME CONSTRAINT "Queue_pkey" TO "Department_pkey";
 ### Rollback
 
 Migrations são one-way no Prisma. Para "rollback":
+
 - Criar migration **nova** que reverte
 - Nunca editar migration commitada
 
@@ -132,6 +135,7 @@ Sempre que aparecer query lenta em produção ou em teste de carga. **Não adici
 - **`onDelete: Restrict`** (default) quando deletar pai deve falhar se houver filho
 
 Exemplos:
+
 - `Message → Ticket`: `onDelete: Cascade` (mensagens não fazem sentido sem ticket)
 - `Ticket → CloseReason`: `onDelete: SetNull` (motivo deletado, ticket mantém referência null)
 - `Ticket → Department`: `onDelete: Restrict` (não pode deletar depto com tickets)
