@@ -1,0 +1,721 @@
+// DigiChat — schema central
+// Convenções obrigatórias: ver prisma/CLAUDE.md
+// Princípio multi-tenant: companyId em toda tabela exceto Plan.
+// IDs: UUID v7 (ordenável temporalmente) via @default(uuid(7)).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  SUPERVISOR
+  AGENT
+}
+
+enum DepartmentDistributionMode {
+  MANUAL
+  RANDOM
+  BALANCED
+  SEQUENTIAL
+}
+
+enum TagScope {
+  CONTACT
+  TICKET
+  BOTH
+}
+
+enum QuickReplyScope {
+  COMPANY
+  PERSONAL
+}
+
+enum LeadStatusFinalKind {
+  WON
+  LOST
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  BOOLEAN
+  SELECT
+  EMAIL
+  PHONE
+  URL
+}
+
+enum CustomFieldEntity {
+  CONTACT
+  TICKET
+  BOTH
+}
+
+enum IntegrationOpenMode {
+  NEW_TAB
+  IFRAME
+}
+
+enum IntegrationVisibility {
+  ALL_USERS
+  ADMINS_ONLY
+}
+
+enum TemplateCategory {
+  MARKETING
+  UTILITY
+  AUTHENTICATION
+}
+
+enum TemplateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DISABLED
+  PAUSED
+}
+
+enum TemplateHeaderType {
+  TEXT
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+enum ApiAuthType {
+  NONE
+  BEARER_TOKEN
+  API_KEY_HEADER
+  BASIC_AUTH
+  CUSTOM_HEADERS
+}
+
+enum WebhookAuthType {
+  NONE
+  BEARER_TOKEN
+  HMAC_SHA256
+  BASIC_AUTH
+}
+
+enum WebhookEvent {
+  CONTACT_CREATED
+  CONTACT_UPDATED
+  TICKET_CREATED
+  TICKET_ASSIGNED
+  TICKET_UPDATED
+  TICKET_TRANSFERRED
+  TICKET_CLOSED
+  TICKET_ARCHIVED
+  MESSAGE_CREATED
+  MESSAGE_STATUS_CHANGED
+  CHANNEL_STATUS_CHANGED
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  RETRYING
+  FAILED
+  CANCELLED
+}
+
+// =============================================================================
+// CORE — tenant + auth
+// =============================================================================
+
+model Plan {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  name        String   @unique
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  companies Company[]
+}
+
+model Company {
+  id     String  @id @default(uuid(7)) @db.Uuid
+  planId String  @db.Uuid
+  name   String
+  slug   String  @unique
+  active Boolean @default(true)
+
+  defaultWorkingHours Json?
+  outOfHoursMessage   String?
+  timezone            String  @default("America/Sao_Paulo")
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  plan     Plan             @relation(fields: [planId], references: [id], onDelete: Restrict)
+  settings CompanySettings?
+
+  users                  User[]
+  refreshTokens          RefreshToken[]
+  departments            Department[]
+  tags                   Tag[]
+  quickReplies           QuickReply[]
+  closeReasons           CloseReason[]
+  salesFunnels           SalesFunnel[]
+  leadStatuses           LeadStatus[]
+  customFieldDefinitions CustomFieldDefinition[]
+  businessHolidays       BusinessHoliday[]
+  integrationLinks       IntegrationLink[]
+  messageTemplates       MessageTemplate[]
+  botCredentials         BotCredential[]
+  webhookSubscriptions   WebhookSubscription[]
+  webhookDeliveries      WebhookDelivery[]
+  auditLogs              AuditLog[]
+  // stubs forward
+  channelConnections     ChannelConnection[]
+  chatFlows              ChatFlow[]
+  contacts               Contact[]
+  tickets                Ticket[]
+
+  @@index([planId])
+  @@index([active])
+}
+
+model CompanySettings {
+  id        String @id @default(uuid(7)) @db.Uuid
+  companyId String @unique @db.Uuid
+
+  // Visibilidade de tickets
+  hideOtherUsersTickets                  Boolean @default(true)
+  agentSeeOtherUsersTicketsOnSameChannel Boolean @default(false)
+  agentSeeTicketsWithOtherDefaultAgents  Boolean @default(true)
+
+  // Privacidade
+  hidePhoneFromAgents Boolean @default(false)
+
+  // Grupos
+  ignoreGroupMessages Boolean @default(false)
+  showAssignedGroups  Boolean @default(false)
+
+  // Roteamento
+  forceWalletRouting Boolean @default(false)
+
+  // Permissões de AGENT
+  agentCanDeleteContacts     Boolean @default(false)
+  agentCanChangeDefaultAgent Boolean @default(false)
+  agentCanEditTags           Boolean @default(false)
+  agentCanToggleSignature    Boolean @default(false)
+
+  // Bot — antecipado da Fase 2
+  hideBotTicketsFromAgents Boolean @default(true)
+
+  // Bot fallback (Fase 3a)
+  defaultBotChatFlowId String? @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company            Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  defaultBotChatFlow ChatFlow? @relation(fields: [defaultBotChatFlowId], references: [id], onDelete: SetNull)
+}
+
+model User {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  companyId    String   @db.Uuid
+  name         String
+  email        String
+  passwordHash String
+  role         UserRole
+
+  absenceMessage String?
+  absenceActive  Boolean   @default(false)
+  lastSeenAt     DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  company       Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  departments   UserDepartment[]
+  refreshTokens RefreshToken[]
+  quickReplies  QuickReply[]
+  auditLogs     AuditLog[]
+
+  @@unique([companyId, email])
+  @@index([companyId])
+  @@index([companyId, role])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  companyId String    @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique // SHA-256(token), hex
+  expiresAt DateTime
+  revokedAt DateTime?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime  @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+// =============================================================================
+// CADASTROS
+// =============================================================================
+
+model Department {
+  id        String  @id @default(uuid(7)) @db.Uuid
+  companyId String  @db.Uuid
+  name      String
+  active    Boolean @default(true)
+
+  greetingMessage   String?
+  outOfHoursMessage String?
+  workingHours      Json?
+
+  slaResponseMinutes   Int?
+  slaResolutionMinutes Int?
+
+  distributionMode DepartmentDistributionMode @default(MANUAL)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  company      Company                 @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  users        UserDepartment[]
+  closeReasons CloseReasonDepartment[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model UserDepartment {
+  userId       String @db.Uuid
+  departmentId String @db.Uuid
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@id([userId, departmentId])
+  @@index([departmentId])
+}
+
+model Tag {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  companyId String   @db.Uuid
+  name      String
+  color     String // hex #RRGGBB validado no app
+  scope     TagScope @default(BOTH)
+  active    Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  contactTags ContactTag[]
+  ticketTags  TicketTag[]
+
+  @@unique([companyId, name])
+  @@index([companyId, scope])
+}
+
+model QuickReply {
+  id            String  @id @default(uuid(7)) @db.Uuid
+  companyId     String  @db.Uuid
+  shortcut      String
+  message       String
+  mediaUrl      String?
+  mediaMimeType String?
+
+  scope       QuickReplyScope
+  ownerUserId String?         @db.Uuid
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  ownerUser User?   @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, scope, ownerUserId, shortcut])
+  @@index([companyId, scope])
+}
+
+model CloseReason {
+  id        String  @id @default(uuid(7)) @db.Uuid
+  companyId String  @db.Uuid
+  name      String
+  message   String?
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  triggersCsat  Boolean @default(false)
+  asksDealValue Boolean @default(false)
+
+  funnelId String? @db.Uuid
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  company     Company                 @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  funnel      SalesFunnel?            @relation(fields: [funnelId], references: [id], onDelete: SetNull)
+  departments CloseReasonDepartment[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@index([companyId, funnelId])
+}
+
+model CloseReasonDepartment {
+  closeReasonId String @db.Uuid
+  departmentId  String @db.Uuid
+
+  closeReason CloseReason @relation(fields: [closeReasonId], references: [id], onDelete: Cascade)
+  department  Department  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@id([closeReasonId, departmentId])
+  @@index([departmentId])
+}
+
+model SalesFunnel {
+  id        String  @id @default(uuid(7)) @db.Uuid
+  companyId String  @db.Uuid
+  name      String
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  leadStatuses LeadStatus[]
+  closeReasons CloseReason[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model LeadStatus {
+  id        String               @id @default(uuid(7)) @db.Uuid
+  companyId String               @db.Uuid
+  funnelId  String               @db.Uuid
+  name      String
+  color     String
+  sortOrder Int                  @default(0)
+  isInitial Boolean              @default(false)
+  isFinal   Boolean              @default(false)
+  finalKind LeadStatusFinalKind?
+  active    Boolean              @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company  Company     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  funnel   SalesFunnel @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+  contacts Contact[]   @relation("ContactLeadStatus")
+
+  @@unique([companyId, funnelId, name])
+  @@index([companyId, funnelId])
+}
+
+model CustomFieldDefinition {
+  id        String            @id @default(uuid(7)) @db.Uuid
+  companyId String            @db.Uuid
+  name      String
+  key       String
+  type      CustomFieldType
+  required  Boolean           @default(false)
+  options   Json?
+  active    Boolean           @default(true)
+  sortOrder Int               @default(0)
+  appliesTo CustomFieldEntity
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, key])
+  @@index([companyId, appliesTo])
+}
+
+model BusinessHoliday {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  companyId     String   @db.Uuid
+  date          DateTime @db.Date
+  name          String
+  appliesToAll  Boolean  @default(true)
+  // No DB-level FK enforcement on UUID arrays — application must clean up stale ids when a Department is deleted.
+  departmentIds String[] @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, date])
+}
+
+// =============================================================================
+// INTEGRAÇÕES (schema-only, módulos vêm em fases futuras)
+// =============================================================================
+
+model IntegrationLink {
+  id        String                @id @default(uuid(7)) @db.Uuid
+  companyId String                @db.Uuid
+  name      String
+  url       String
+  iconUrl   String?
+  openMode  IntegrationOpenMode   @default(NEW_TAB)
+  visibleTo IntegrationVisibility @default(ALL_USERS)
+  active    Boolean               @default(true)
+  sortOrder Int                   @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+}
+
+model MessageTemplate {
+  id                  String              @id @default(uuid(7)) @db.Uuid
+  companyId           String              @db.Uuid
+  channelConnectionId String              @db.Uuid
+  externalId          String
+  name                String
+  category            TemplateCategory
+  status              TemplateStatus
+  language            String
+  bodyText            String
+  headerType          TemplateHeaderType?
+  headerText          String?
+  footerText          String?
+  buttons             Json?
+  variables           Int                 @default(0)
+  rejectionReason     String?
+  lastSyncedAt        DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company           Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  channelConnection ChannelConnection @relation(fields: [channelConnectionId], references: [id], onDelete: Cascade)
+
+  // channelConnectionId is tenant-scoped; uniqueness below is implicitly per-tenant.
+  @@unique([channelConnectionId, externalId])
+  @@unique([channelConnectionId, name, language])
+  @@index([companyId, status])
+}
+
+model BotCredential {
+  id          String      @id @default(uuid(7)) @db.Uuid
+  companyId   String      @db.Uuid
+  name        String
+  description String?
+  authType    ApiAuthType
+  config      Bytes
+  active      Boolean     @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model WebhookSubscription {
+  id        String  @id @default(uuid(7)) @db.Uuid
+  companyId String  @db.Uuid
+  name      String
+  url       String
+  active    Boolean @default(true)
+
+  channelConnectionId String? @db.Uuid
+
+  // TODO(Phase-3a): encrypt at rest (AES-256-GCM via EncryptionService) — currently plain text. authConfig will be encrypted similarly.
+  secret     String
+  authType   WebhookAuthType @default(NONE)
+  authConfig Bytes?
+
+  events WebhookEvent[]
+
+  maxRetries      Int @default(5)
+  retryBackoffSec Int @default(60)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  channelConnection ChannelConnection? @relation(fields: [channelConnectionId], references: [id], onDelete: SetNull)
+  deliveries        WebhookDelivery[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model WebhookDelivery {
+  id             String                @id @default(uuid(7)) @db.Uuid
+  companyId      String                @db.Uuid
+  subscriptionId String                @db.Uuid
+  event          WebhookEvent
+  payload        Json
+  attempts       Int                   @default(0)
+  status         WebhookDeliveryStatus
+  lastAttemptAt  DateTime?
+  nextRetryAt    DateTime?
+  responseStatus Int?
+  responseBody   String?
+  errorMessage   String?
+  createdAt      DateTime              @default(now())
+
+  company      Company             @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  subscription WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([subscriptionId, status])
+  @@index([nextRetryAt, status])
+}
+
+// =============================================================================
+// AUDITORIA
+// =============================================================================
+
+model AuditLog {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  companyId   String   @db.Uuid
+  actorUserId String?  @db.Uuid
+  action      String
+  resource    String
+  resourceId  String   @db.Uuid
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  actorUser User?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, resource, resourceId])
+  @@index([companyId, action])
+  @@index([companyId, createdAt])
+}
+
+// =============================================================================
+// STUBS FORWARD — entidades de fases futuras, schema mínimo
+// =============================================================================
+
+/// STUB — expanded in Phase 1
+model ChannelConnection {
+  id        String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
+  name      String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  company              Company               @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  messageTemplates     MessageTemplate[]
+  webhookSubscriptions WebhookSubscription[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+/// STUB — expanded in Phase 3a
+model ChatFlow {
+  id        String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
+  name      String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  companySettings CompanySettings[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+/// STUB — expanded in Phase 1
+model Contact {
+  id           String  @id @default(uuid(7)) @db.Uuid
+  companyId    String  @db.Uuid
+  name         String?
+  phoneNumber  String
+  leadStatusId String? @db.Uuid
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  leadStatus  LeadStatus?  @relation("ContactLeadStatus", fields: [leadStatusId], references: [id], onDelete: SetNull)
+  contactTags ContactTag[]
+
+  @@unique([companyId, phoneNumber])
+  @@index([companyId])
+  @@index([companyId, leadStatusId])
+}
+
+/// STUB — expanded in Phase 1
+model Ticket {
+  id        String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  ticketTags TicketTag[]
+
+  @@index([companyId])
+}
+
+model ContactTag {
+  contactId String @db.Uuid
+  tagId     String @db.Uuid
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([contactId, tagId])
+  @@index([tagId])
+}
+
+model TicketTag {
+  ticketId String @db.Uuid
+  tagId    String @db.Uuid
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([ticketId, tagId])
+  @@index([tagId])
+}

@@ -3,7 +3,7 @@
 > Plano de fases do projeto. Atualize ao terminar cada fase ou quando o escopo mudar.
 >
 > **Versão:** 6 (stack atualizada: Fastify + Zod + Scalar + Kubb)
-> **Última atualização:** 27/04/2026
+> **Última atualização:** 01/05/2026
 >
 > **Documento companheiro:** `ARCHITECTURE.md` v6.
 
@@ -46,18 +46,18 @@
 
 ## 3. Mapa geral de fases
 
-| #   | Nome                                                   | Estimativa             | Status     |
-| --- | ------------------------------------------------------ | ---------------------- | ---------- |
-| 0   | Fundação + gerador de boilerplate de 3 camadas         | 5-6 semanas            | aguardando |
-| 1   | Canal Gupshup + mensagens + auto-close + templates HSM | 4-5 semanas            | aguardando |
-| 2   | Tickets + atendimento + composer HSM                   | 5-6 semanas            | aguardando |
-| 3a  | Bot Engine + mensageria rica completa                  | 6-8 semanas            | aguardando |
-| 3b  | Bot avançado                                           | 4-5 semanas            | aguardando |
-| 4   | Polimento, CSAT, telas auxiliares                      | 4-5 semanas            | aguardando |
-| 5   | Disparos em massa + webhooks + API push                | 5-6 semanas            | aguardando |
-| 6   | Builder visual de fluxo                                | 4-5 semanas            | aguardando |
-| 7   | Baileys (canal não-oficial)                            | 3-4 semanas            | aguardando |
-| 8   | Migração dos clientes existentes                       | variável (2-4 semanas) | aguardando |
+| #   | Nome                                                   | Estimativa             | Status       |
+| --- | ------------------------------------------------------ | ---------------------- | ------------ |
+| 0   | Fundação + gerador de boilerplate de 3 camadas         | 5-6 semanas            | em andamento |
+| 1   | Canal Gupshup + mensagens + auto-close + templates HSM | 4-5 semanas            | aguardando   |
+| 2   | Tickets + atendimento + composer HSM                   | 5-6 semanas            | aguardando   |
+| 3a  | Bot Engine + mensageria rica completa                  | 6-8 semanas            | aguardando   |
+| 3b  | Bot avançado                                           | 4-5 semanas            | aguardando   |
+| 4   | Polimento, CSAT, telas auxiliares                      | 4-5 semanas            | aguardando   |
+| 5   | Disparos em massa + webhooks + API push                | 5-6 semanas            | aguardando   |
+| 6   | Builder visual de fluxo                                | 4-5 semanas            | aguardando   |
+| 7   | Baileys (canal não-oficial)                            | 3-4 semanas            | aguardando   |
+| 8   | Migração dos clientes existentes                       | variável (2-4 semanas) | aguardando   |
 
 **Estimativa total:** 42-54 semanas até produção comercial completa (~10-13 meses).
 
@@ -129,25 +129,25 @@ Fase 9+ (Backlog, IA quando priorizada)
 
 **Entidades base:**
 
-- [ ] `Plan`, `Company`, `CompanySettings` (13 flags incluindo `hideBotTicketsFromAgents`)
-- [ ] `User` (4 perfis), `RefreshToken`
-- [ ] `Department` (workingHours, SLA, distributionMode preparados)
+- [x] `Plan`, `Company`, `CompanySettings` (13 flags incluindo `hideBotTicketsFromAgents`)
+- [x] `User` (4 perfis), `RefreshToken`
+- [x] `Department` (workingHours, SLA, distributionMode preparados)
 
 **Cadastros:**
 
-- [ ] `Tag` (com scope), `QuickReply` (escopo COMPANY/PERSONAL)
-- [ ] `CloseReason` + `CloseReasonDepartment`
-- [ ] `SalesFunnel`, `LeadStatus`
-- [ ] `CustomFieldDefinition` (8 tipos, schema preparado)
-- [ ] `BusinessHoliday` (schema preparado, fase 4+)
+- [x] `Tag` (com scope), `QuickReply` (escopo COMPANY/PERSONAL)
+- [x] `CloseReason` + `CloseReasonDepartment`
+- [x] `SalesFunnel`, `LeadStatus`
+- [x] `CustomFieldDefinition` (8 tipos, schema preparado)
+- [x] `BusinessHoliday` (schema preparado, fase 4+)
 
 **Integrações (schema apenas):**
 
-- [ ] `IntegrationLink`, `MessageTemplate`, `BotCredential`, `WebhookSubscription`, `WebhookDelivery`
+- [x] `IntegrationLink`, `MessageTemplate`, `BotCredential`, `WebhookSubscription`, `WebhookDelivery`
 
 **Auditoria:**
 
-- [ ] `AuditLog`
+- [x] `AuditLog`
 
 ### Auth (estrutura 3 camadas)
 
@@ -673,17 +673,17 @@ A arquitetura atual **não bloqueia** essa evolução.
 
 ## 17. Rastreamento
 
-| Fase    | Início  | Fim | Status       | Notas                                                            |
-| ------- | ------- | --- | ------------ | ---------------------------------------------------------------- |
-| Fase 0  | 2026-04 | —   | em andamento | Setup, gerador 3 camadas e docs prontos. Próximo: Prisma + auth. |
-| Fase 1  | —       | —   | aguardando   | —                                                                |
-| Fase 2  | —       | —   | aguardando   | —                                                                |
-| Fase 3a | —       | —   | aguardando   | —                                                                |
-| Fase 3b | —       | —   | aguardando   | —                                                                |
-| Fase 4  | —       | —   | aguardando   | —                                                                |
-| Fase 5  | —       | —   | aguardando   | Pré-req Fase 8                                                   |
-| Fase 6  | —       | —   | aguardando   | —                                                                |
-| Fase 7  | —       | —   | aguardando   | —                                                                |
-| Fase 8  | —       | —   | aguardando   | Requer Fase 5                                                    |
-| Fase 9+ | —       | —   | aguardando   | Backlog                                                          |
-| IA      | —       | —   | sem prazo    | —                                                                |
+| Fase    | Início  | Fim | Status       | Notas                                                                   |
+| ------- | ------- | --- | ------------ | ----------------------------------------------------------------------- |
+| Fase 0  | 2026-04 | —   | em andamento | Setup, gerador 3 camadas, docs e schema do núcleo prontos. Próximo: auth. |
+| Fase 1  | —       | —   | aguardando   | —                                                                       |
+| Fase 2  | —       | —   | aguardando   | —                                                                       |
+| Fase 3a | —       | —   | aguardando   | —                                                                       |
+| Fase 3b | —       | —   | aguardando   | —                                                                       |
+| Fase 4  | —       | —   | aguardando   | —                                                                       |
+| Fase 5  | —       | —   | aguardando   | Pré-req Fase 8                                                          |
+| Fase 6  | —       | —   | aguardando   | —                                                                       |
+| Fase 7  | —       | —   | aguardando   | —                                                                       |
+| Fase 8  | —       | —   | aguardando   | Requer Fase 5                                                           |
+| Fase 9+ | —       | —   | aguardando   | Backlog                                                                 |
+| IA      | —       | —   | sem prazo    | —                                                                       |

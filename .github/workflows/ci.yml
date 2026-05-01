@@ -75,6 +75,10 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      - name: Schema tests
+        if: hashFiles('vitest.schema.config.ts') != ''
+        run: pnpm test:schema
+
       - name: E2E tests
         if: hashFiles('vitest.e2e.config.ts') != ''
         run: pnpm test:e2e
