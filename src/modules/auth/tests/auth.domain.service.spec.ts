@@ -238,3 +238,67 @@ describe('AuthDomainService.rotateRefresh', () => {
     await expect(service.rotateRefresh('any', null, null)).rejects.toThrow(UnauthorizedException);
   });
 });
+
+describe('AuthDomainService.revokeRefreshTokenByJti', () => {
+  it('revokes the row matching jti+userId+companyId+revokedAt=null', async () => {
+    const prisma = {
+      refreshToken: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    };
+    const service = new AuthDomainService(prisma as never, {} as never);
+
+    const result = await service.revokeRefreshTokenByJti('jti-x', 'user-1', 'co-1');
+
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: {
+        tokenHash: createHash('sha256').update('jti-x').digest('hex'),
+        userId: 'user-1',
+        companyId: 'co-1',
+        revokedAt: null,
+      },
+      data: { revokedAt: expect.any(Date) as unknown },
+    });
+    expect(result).toBe(1);
+  });
+
+  it('returns 0 (idempotent) when token already revoked', async () => {
+    const prisma = {
+      refreshToken: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    };
+    const service = new AuthDomainService(prisma as never, {} as never);
+
+    const result = await service.revokeRefreshTokenByJti('jti-x', 'user-1', 'co-1');
+
+    expect(result).toBe(0);
+  });
+});
+
+describe('AuthDomainService.revokeAllRefreshTokens', () => {
+  it('revokes all active refresh tokens for the user scoped by company', async () => {
+    const prisma = {
+      refreshToken: { updateMany: vi.fn().mockResolvedValue({ count: 3 }) },
+    };
+    const service = new AuthDomainService(prisma as never, {} as never);
+
+    const result = await service.revokeAllRefreshTokens('user-1', 'co-1');
+
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1', companyId: 'co-1', revokedAt: null },
+      data: { revokedAt: expect.any(Date) as unknown },
+    });
+    expect(result).toBe(3);
+  });
+
+  it('does not affect other tenants', async () => {
+    const prisma = {
+      refreshToken: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    };
+    const service = new AuthDomainService(prisma as never, {} as never);
+
+    await service.revokeAllRefreshTokens('user-of-A', 'company-B');
+
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: 'user-of-A', companyId: 'company-B', revokedAt: null },
+      data: { revokedAt: expect.any(Date) as unknown },
+    });
+  });
+});

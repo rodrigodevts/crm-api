@@ -127,6 +127,22 @@ export class AuthDomainService {
     });
   }
 
+  async revokeRefreshTokenByJti(jti: string, userId: string, companyId: string): Promise<number> {
+    const result = await this.prisma.refreshToken.updateMany({
+      where: { tokenHash: this.hashJti(jti), userId, companyId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return result.count;
+  }
+
+  async revokeAllRefreshTokens(userId: string, companyId: string): Promise<number> {
+    const result = await this.prisma.refreshToken.updateMany({
+      where: { userId, companyId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return result.count;
+  }
+
   hashJti(jti: string): string {
     return createHash('sha256').update(jti).digest('hex');
   }
