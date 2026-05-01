@@ -33,4 +33,36 @@ describe('feature schematic', () => {
     const files = tree.files.filter((f) => f.startsWith('/src/modules/contacts/'));
     expect(files.length).toBeGreaterThan(0);
   });
+
+  it('generates module file with correct class name and providers', async () => {
+    const tree = await runner.runSchematic('feature', { name: 'contacts' }, buildSeedTree());
+    const path = '/src/modules/contacts/contacts.module.ts';
+    expect(tree.exists(path)).toBe(true);
+    const content = tree.readContent(path);
+    expect(content).toContain(`import { Module } from '@nestjs/common';`);
+    expect(content).toContain(
+      `import { ContactsController } from './controllers/contacts.controller';`,
+    );
+    expect(content).toContain(
+      `import { ContactsApplicationService } from './services/contacts.application.service';`,
+    );
+    expect(content).toContain(
+      `import { ContactsDomainService } from './services/contacts.domain.service';`,
+    );
+    expect(content).toContain(`export class ContactsModule {}`);
+    expect(content).toContain(`controllers: [ContactsController]`);
+    expect(content).toContain(`providers: [ContactsApplicationService, ContactsDomainService]`);
+    expect(content).toContain(`exports: [ContactsApplicationService]`);
+  });
+
+  it('handles multi-word kebab-case names correctly', async () => {
+    const tree = await runner.runSchematic(
+      'feature',
+      { name: 'message-templates' },
+      buildSeedTree(),
+    );
+    const content = tree.readContent('/src/modules/message-templates/message-templates.module.ts');
+    expect(content).toContain(`export class MessageTemplatesModule {}`);
+    expect(content).toContain(`MessageTemplatesController`);
+  });
 });
