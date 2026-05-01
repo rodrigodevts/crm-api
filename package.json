@@ -24,7 +24,7 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
-    "g:feature": "nest g --collection ./schematics feature"
+    "g:feature": "nest g --collection ./schematics/collection.json feature"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.19",
