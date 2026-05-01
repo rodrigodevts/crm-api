@@ -309,3 +309,132 @@ describe('UsersDomainService.create', () => {
     });
   });
 });
+
+describe('UsersDomainService.update', () => {
+  let service: UsersDomainService;
+  let prisma: {
+    user: { findUnique: ReturnType<typeof vi.fn> };
+  };
+  let tx: {
+    user: {
+      findFirst: ReturnType<typeof vi.fn>;
+      update: ReturnType<typeof vi.fn>;
+      count: ReturnType<typeof vi.fn>;
+    };
+    department: { count: ReturnType<typeof vi.fn> };
+    userDepartment: {
+      deleteMany: ReturnType<typeof vi.fn>;
+      createMany: ReturnType<typeof vi.fn>;
+    };
+  };
+  const COMPANY = '00000000-0000-7000-8000-00000000aaaa';
+  const USER_ID = '00000000-0000-7000-8000-000000000001';
+
+  beforeEach(() => {
+    prisma = { user: { findUnique: vi.fn() } };
+    tx = {
+      user: { findFirst: vi.fn(), update: vi.fn(), count: vi.fn() },
+      department: { count: vi.fn() },
+      userDepartment: { deleteMany: vi.fn(), createMany: vi.fn() },
+    };
+    service = new UsersDomainService(prisma as unknown as PrismaService);
+  });
+
+  const stubExisting = (overrides: Partial<User> = {}) => {
+    const existing = {
+      ...baseUser({ id: USER_ID, companyId: COMPANY, ...overrides }),
+      departments: [],
+    };
+    tx.user.findFirst.mockResolvedValue(existing);
+    return existing;
+  };
+
+  it('throws NotFoundException when target does not exist or is soft-deleted', async () => {
+    tx.user.findFirst.mockResolvedValue(null);
+    await expect(
+      service.update(USER_ID, COMPANY, { name: 'X' }, tx as never),
+    ).rejects.toMatchObject({ status: 404, message: 'Usuário não encontrado' });
+  });
+
+  it('throws ForbiddenException when target is SUPER_ADMIN', async () => {
+    stubExisting({ role: 'SUPER_ADMIN' });
+    await expect(
+      service.update(USER_ID, COMPANY, { name: 'X' }, tx as never),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('throws ConflictException when email is changed to one already in use', async () => {
+    stubExisting({ role: 'AGENT', email: 'self@x.com' });
+    prisma.user.findUnique.mockResolvedValue(baseUser({ id: 'other', email: 'taken@x.com' }));
+    await expect(
+      service.update(USER_ID, COMPANY, { email: 'taken@x.com' }, tx as never),
+    ).rejects.toMatchObject({ status: 409, message: 'Email já cadastrado' });
+  });
+
+  it('passes when email is unchanged', async () => {
+    stubExisting({ role: 'AGENT', email: 'self@x.com' });
+    tx.user.update.mockResolvedValue({});
+    tx.user.findFirst.mockResolvedValueOnce({
+      ...baseUser({ id: USER_ID, role: 'AGENT', email: 'self@x.com' }),
+      departments: [],
+    });
+    tx.user.findFirst.mockResolvedValueOnce({
+      ...baseUser({ id: USER_ID, role: 'AGENT', email: 'self@x.com', name: 'Renamed' }),
+      departments: [],
+    });
+    await expect(
+      service.update(USER_ID, COMPANY, { name: 'Renamed' }, tx as never),
+    ).resolves.toBeDefined();
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('throws ConflictException when demoting the last ADMIN', async () => {
+    stubExisting({ role: 'ADMIN' });
+    tx.user.count.mockResolvedValue(0);
+    await expect(
+      service.update(USER_ID, COMPANY, { role: 'AGENT' }, tx as never),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: 'Não é possível remover o último ADMIN do tenant',
+    });
+  });
+
+  it('passes when demoting an ADMIN with at least one other active ADMIN', async () => {
+    stubExisting({ role: 'ADMIN' });
+    tx.user.count.mockResolvedValue(1);
+    tx.user.update.mockResolvedValue({});
+    tx.user.findFirst.mockResolvedValueOnce({
+      ...baseUser({ id: USER_ID, role: 'ADMIN' }),
+      departments: [],
+    });
+    tx.user.findFirst.mockResolvedValueOnce({
+      ...baseUser({ id: USER_ID, role: 'AGENT' }),
+      departments: [],
+    });
+    await expect(
+      service.update(USER_ID, COMPANY, { role: 'AGENT' }, tx as never),
+    ).resolves.toBeDefined();
+  });
+
+  it('replaces departments completely when departmentIds is provided', async () => {
+    stubExisting({ role: 'AGENT' });
+    tx.department.count.mockResolvedValue(2);
+    tx.user.update.mockResolvedValue({});
+    tx.user.findFirst.mockResolvedValueOnce({
+      ...baseUser({ id: USER_ID, role: 'AGENT' }),
+      departments: [],
+    });
+    tx.user.findFirst.mockResolvedValueOnce({
+      ...baseUser({ id: USER_ID, role: 'AGENT' }),
+      departments: [],
+    });
+    const ids = ['00000000-0000-7000-8000-00000000d001', '00000000-0000-7000-8000-00000000d002'];
+
+    await service.update(USER_ID, COMPANY, { departmentIds: ids }, tx as never);
+
+    expect(tx.userDepartment.deleteMany).toHaveBeenCalledWith({ where: { userId: USER_ID } });
+    expect(tx.userDepartment.createMany).toHaveBeenCalledWith({
+      data: ids.map((d) => ({ userId: USER_ID, departmentId: d })),
+    });
+  });
+});

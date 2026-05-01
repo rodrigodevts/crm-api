@@ -20,6 +20,16 @@ export interface CreateUserInput {
   departmentIds: string[];
 }
 
+export interface UpdateUserPatch {
+  name?: string;
+  email?: string;
+  passwordHash?: string;
+  role?: 'ADMIN' | 'SUPERVISOR' | 'AGENT';
+  departmentIds?: string[];
+  absenceMessage?: string | null;
+  absenceActive?: boolean;
+}
+
 export interface ListUsersFilters {
   role?: 'ADMIN' | 'SUPERVISOR' | 'AGENT' | 'SUPER_ADMIN';
   active?: boolean;
@@ -208,5 +218,55 @@ export class UsersDomainService {
     }
 
     return this.findByIdWithDepartments(created.id, companyId, tx);
+  }
+
+  async update(
+    userId: string,
+    companyId: string,
+    patch: UpdateUserPatch,
+    tx: Prisma.TransactionClient,
+  ): Promise<UserWithDepartments> {
+    const existing = await this.findByIdWithDepartments(userId, companyId, tx);
+    this.assertNotSuperAdmin(existing);
+
+    if (patch.email && patch.email !== existing.email) {
+      await this.assertEmailNotInUse(patch.email, existing.id);
+    }
+
+    if (patch.role && existing.role === 'ADMIN' && patch.role !== 'ADMIN') {
+      await this.assertNotLastAdmin(existing.id, companyId, tx);
+    }
+
+    if (patch.departmentIds !== undefined) {
+      await this.assertDepartmentsBelongToTenant(patch.departmentIds, companyId, tx);
+      await this.syncDepartments(existing.id, patch.departmentIds, tx);
+    }
+
+    const userScalarPatch: Prisma.UserUpdateInput = {};
+    if (patch.name !== undefined) userScalarPatch.name = patch.name;
+    if (patch.email !== undefined) userScalarPatch.email = patch.email;
+    if (patch.passwordHash !== undefined) userScalarPatch.passwordHash = patch.passwordHash;
+    if (patch.role !== undefined) userScalarPatch.role = patch.role;
+    if (patch.absenceMessage !== undefined) userScalarPatch.absenceMessage = patch.absenceMessage;
+    if (patch.absenceActive !== undefined) userScalarPatch.absenceActive = patch.absenceActive;
+
+    if (Object.keys(userScalarPatch).length > 0) {
+      await tx.user.update({ where: { id: existing.id }, data: userScalarPatch });
+    }
+
+    return this.findByIdWithDepartments(existing.id, companyId, tx);
+  }
+
+  private async syncDepartments(
+    userId: string,
+    deptIds: string[],
+    tx: Prisma.TransactionClient,
+  ): Promise<void> {
+    await tx.userDepartment.deleteMany({ where: { userId } });
+    if (deptIds.length > 0) {
+      await tx.userDepartment.createMany({
+        data: deptIds.map((d) => ({ userId, departmentId: d })),
+      });
+    }
   }
 }
