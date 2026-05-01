@@ -255,6 +255,7 @@ Use template:
 ### Tamanho
 
 PRs pequenos. Idealmente:
+
 - < 300 linhas modificadas
 - Foco em uma única feature/fix
 
@@ -305,11 +306,12 @@ modules/feature-name/
     └── feature-name.controller.e2e-spec.ts
 ```
 
-Use `pnpm nest g feature <nome>` (gerador customizado da Fase 0) para criar estrutura.
+Use `pnpm g:feature <nome>` (gerador local em `schematics/feature/`) para criar estrutura. Evita drift do padrão de 3 camadas e atualiza `app.module.ts` automaticamente.
 
 ### Imports
 
 Ordem (auto-organizada por linter):
+
 1. Node built-ins
 2. Pacotes externos (npm)
 3. Pacotes internos (alias `@/`)
@@ -331,12 +333,14 @@ Sempre lançar exceções tipadas. Ver `error-handling.md`.
 ## 7. Antes de mergear (checklist)
 
 Validações automáticas (CI):
+
 - [ ] Lint passa (`pnpm lint`)
 - [ ] Typecheck passa (`pnpm typecheck`)
 - [ ] Testes passam (`pnpm test`)
 - [ ] Build passa (`pnpm build`)
 
 Validações manuais:
+
 - [ ] Multi-tenant checklist (ver `multi-tenant-checklist.md`)
 - [ ] Testou manualmente em ambiente local
 - [ ] Sem `console.log` esquecido

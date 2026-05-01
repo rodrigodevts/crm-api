@@ -21,6 +21,7 @@
 **Onde:** `src/modules/<feature>/tests/<feature>.domain.service.spec.ts`
 
 **O que testar:**
+
 - Lógica de regra de negócio
 - State machines (transições válidas e inválidas)
 - Cálculos
@@ -28,6 +29,7 @@
 - Edge cases
 
 **O que NÃO testar:**
+
 - Métodos que apenas chamam Prisma sem lógica
 - Getters/setters
 - Construtores triviais
@@ -74,17 +76,17 @@ describe('TicketsDomainService', () => {
     it('throws ConflictException when ticket is not pending', async () => {
       prisma.ticket.updateMany.mockResolvedValue({ count: 0 });
 
-      await expect(
-        service.accept('ticket-1', 'company-1', 'user-1', prisma)
-      ).rejects.toThrow(ConflictException);
+      await expect(service.accept('ticket-1', 'company-1', 'user-1', prisma)).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('does not allow accepting ticket from another company', async () => {
       prisma.ticket.updateMany.mockResolvedValue({ count: 0 });
 
-      await expect(
-        service.accept('ticket-of-A', 'company-B', 'user-of-B', prisma)
-      ).rejects.toThrow(ConflictException);
+      await expect(service.accept('ticket-of-A', 'company-B', 'user-of-B', prisma)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 });
@@ -106,20 +108,23 @@ describe('TicketsDomainService', () => {
 
 ### E2E Tests — Fluxos críticos
 
-**Onde:** `test/<feature>.e2e-spec.ts`
+**Onde:** `src/modules/<feature>/tests/<feature>.controller.e2e-spec.ts`
 
 **O que testar:**
+
 - Happy path do fluxo principal
 - 1-2 sad paths importantes
 - **Multi-tenant isolation** (obrigatório por feature)
 - Race conditions críticas (aceite simultâneo de ticket)
 
 **O que NÃO testar:**
+
 - Toda combinação de validação de schema Zod
 - Toda mensagem de erro
 - CRUDs simples e completos (lista, atualiza, exclui — só happy path)
 
 **Setup:**
+
 - Banco real em memória ou container Docker (Postgres test)
 - Redis test
 - Mocks de canais externos (Gupshup) — não bater em API real
@@ -205,7 +210,7 @@ describe('TicketsController (e2e)', () => {
         .post(`/tickets/${ticketOfA.id}/accept`)
         .set('Authorization', `Bearer ${tokenB}`);
 
-      expect(response.status).toBe(404);  // não vê, não pode aceitar
+      expect(response.status).toBe(404); // não vê, não pode aceitar
     });
   });
 });
@@ -220,6 +225,7 @@ describe('TicketsController (e2e)', () => {
 Bot Engine tem complexidade alta. Mais testes:
 
 **Unit nos node executors:**
+
 - `start-node.executor.spec.ts`
 - `capture-node.executor.spec.ts` (testar todos os validators)
 - `condition-node.executor.spec.ts` (testar expression engine com casos)
@@ -227,10 +233,12 @@ Bot Engine tem complexidade alta. Mais testes:
 - `loop-node.executor.spec.ts` (testar iteração, empty handler)
 
 **Integration do BotEngine:**
+
 - Fluxo completo simulado (sem chamar WhatsApp real)
 - Cenários do `audit-05-bot-fluxo.md`
 
 **E2E do bot via webhook:**
+
 - Webhook entrante → bot processa → mensagem outbound
 
 ---
@@ -358,14 +366,14 @@ it('auto-closes ticket inactive for 60 minutes', async () => {
 
   const ticket = await createTicket(prisma, companyId, {
     status: 'OPEN',
-    lastInboundAt: new Date('2026-04-27T08:30:00Z'),  // 1h30 atrás
+    lastInboundAt: new Date('2026-04-27T08:30:00Z'), // 1h30 atrás
   });
 
-  vi.setSystemTime(new Date('2026-04-27T10:30:00Z'));  // já passou 2h
+  vi.setSystemTime(new Date('2026-04-27T10:30:00Z')); // já passou 2h
 
   await autoCloseWorker.process();
 
-  const updated = await prisma.ticket.findFirst({ where: { id: ticket.id }});
+  const updated = await prisma.ticket.findFirst({ where: { id: ticket.id } });
   expect(updated.status).toBe('CLOSED');
   expect(updated.resolvedBy).toBe('SYSTEM');
 

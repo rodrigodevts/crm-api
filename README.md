@@ -63,6 +63,21 @@ Use com parcimônia. CI roda os mesmos checks e bloqueia merge.
 | `GET  /api/v1/openapi.json` | OpenAPI 3 (consumido pelo Kubb no `crm-web`) |
 | `GET  /api/v1/openapi.yaml` | OpenAPI 3 em YAML                            |
 
+## Gerador de feature
+
+Use o schematic local pra criar um módulo novo seguindo o padrão de 3 camadas:
+
+```bash
+pnpm g:feature <nome>          # nome em kebab-case
+# exemplos:
+pnpm g:feature contacts
+pnpm g:feature message-templates
+```
+
+Cria sob `src/modules/<nome>/`: módulo, controller (5 endpoints CRUD stub), application service, domain service, 3 schemas Zod placeholder e 2 specs (`domain.service.spec.ts` + `controller.e2e-spec.ts`). Adiciona import + entrada em `src/app.module.ts` automaticamente.
+
+Schemas Zod e regras de negócio ficam com `// TODO` — implementação real é responsabilidade da feature, não do gerador.
+
 ## Comandos
 
 ```bash
@@ -108,8 +123,7 @@ Ver [`ROADMAP.md`](./ROADMAP.md) §5. Em ordem:
 3. Schema do núcleo (Company, Plan, User, Department, Tag, etc)
 4. Services foundationais (BusinessHours, TemplateRenderer, Encryption)
 5. CRUDs básicos com 3 camadas
-6. Gerador `pnpm nest g feature <nome>`
-7. CI GitHub Actions
+6. CI GitHub Actions
 
 ## Documentação relacionada
 

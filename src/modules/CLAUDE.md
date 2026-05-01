@@ -27,7 +27,7 @@ modules/feature-name/
     └── feature-name.controller.e2e-spec.ts
 ```
 
-Use `pnpm nest g feature <nome>` (gerador customizado) pra criar a estrutura.
+Use `pnpm g:feature <nome>` (gerador customizado) pra criar a estrutura. Por baixo, roda `nest g --collection ./schematics/collection.json feature <nome>`.
 
 ---
 
@@ -96,17 +96,20 @@ Application service compõe os domain services.
 ## Schemas Zod
 
 ```typescript
-import { z } from 'nestjs-zod/z';
+import { z } from 'zod';
 
-export const CreateFeatureSchema = z.object({
-  name: z.string().min(1).max(100).describe('Nome da feature'),
-  active: z.boolean().default(true),
-}).describe('Dados para criar feature');
+export const CreateFeatureSchema = z
+  .object({
+    name: z.string().min(1).max(100).describe('Nome da feature'),
+    active: z.boolean().default(true),
+  })
+  .describe('Dados para criar feature');
 
 export type CreateFeatureDto = z.infer<typeof CreateFeatureSchema>;
 ```
 
 **Regras:**
+
 - Schema **NUNCA** aceita `companyId` no body
 - Use `.describe()` em campos não-óbvios (vira docstring no OpenAPI)
 - Type sempre derivado via `z.infer`
@@ -127,6 +130,7 @@ export type CreateFeatureDto = z.infer<typeof CreateFeatureSchema>;
 ## Imports
 
 Ordem (auto-organizada por linter):
+
 1. Built-ins do Node
 2. Pacotes externos (`@nestjs/*`, `zod`, etc)
 3. Pacotes internos (alias `@/`)
@@ -148,5 +152,5 @@ Ordem (auto-organizada por linter):
 
 1. Confirme em `ROADMAP.md` que estamos na fase certa
 2. Leia o audit relevante em `crm-specs/audits/`
-3. Use o gerador (`pnpm nest g feature <nome>`)
+3. Use o gerador (`pnpm g:feature <nome>`)
 4. Siga o workflow de Superpowers (brainstorm → plan → execute)
