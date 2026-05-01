@@ -190,3 +190,122 @@ describe('UsersDomainService.list cursor encoding', () => {
     expect(() => service.decodeCursor('not-base64-json')).toThrow();
   });
 });
+
+describe('UsersDomainService.create', () => {
+  let service: UsersDomainService;
+  let prisma: {
+    user: {
+      findUnique: ReturnType<typeof vi.fn>;
+      findFirst: ReturnType<typeof vi.fn>;
+    };
+  };
+  let tx: {
+    user: { create: ReturnType<typeof vi.fn>; findFirst: ReturnType<typeof vi.fn> };
+    department: { count: ReturnType<typeof vi.fn> };
+    userDepartment: { createMany: ReturnType<typeof vi.fn> };
+  };
+  const COMPANY = '00000000-0000-7000-8000-00000000aaaa';
+
+  beforeEach(() => {
+    prisma = {
+      user: {
+        findUnique: vi.fn(),
+        findFirst: vi.fn(),
+      },
+    };
+    tx = {
+      user: { create: vi.fn(), findFirst: vi.fn() },
+      department: { count: vi.fn() },
+      userDepartment: { createMany: vi.fn() },
+    };
+    service = new UsersDomainService(prisma as unknown as PrismaService);
+  });
+
+  it('throws ConflictException when email is already in use', async () => {
+    prisma.user.findUnique.mockResolvedValue(baseUser({ email: 'taken@x.com' }));
+    await expect(
+      service.create(
+        {
+          name: 'New',
+          email: 'taken@x.com',
+          passwordHash: 'h',
+          role: 'AGENT',
+          departmentIds: [],
+        },
+        COMPANY,
+        tx as never,
+      ),
+    ).rejects.toMatchObject({ status: 409, message: 'Email já cadastrado' });
+    expect(tx.user.create).not.toHaveBeenCalled();
+  });
+
+  it('throws BadRequestException when departmentIds do not all belong to tenant', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    tx.department.count.mockResolvedValue(1);
+    await expect(
+      service.create(
+        {
+          name: 'New',
+          email: 'new@x.com',
+          passwordHash: 'h',
+          role: 'AGENT',
+          departmentIds: [
+            '00000000-0000-7000-8000-00000000d001',
+            '00000000-0000-7000-8000-00000000d002',
+          ],
+        },
+        COMPANY,
+        tx as never,
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(tx.user.create).not.toHaveBeenCalled();
+  });
+
+  it('creates user without departments when departmentIds is empty', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    const created = baseUser({ id: 'new-id', email: 'new@x.com' });
+    tx.user.create.mockResolvedValue(created);
+    tx.user.findFirst.mockResolvedValue({ ...created, departments: [] });
+
+    const result = await service.create(
+      {
+        name: 'New',
+        email: 'new@x.com',
+        passwordHash: 'h',
+        role: 'AGENT',
+        departmentIds: [],
+      },
+      COMPANY,
+      tx as never,
+    );
+
+    expect(tx.user.create).toHaveBeenCalled();
+    expect(tx.userDepartment.createMany).not.toHaveBeenCalled();
+    expect(result.id).toBe('new-id');
+  });
+
+  it('creates user and links departments when departmentIds is non-empty', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    tx.department.count.mockResolvedValue(2);
+    const created = baseUser({ id: 'new-id', email: 'new@x.com' });
+    tx.user.create.mockResolvedValue(created);
+    tx.user.findFirst.mockResolvedValue({ ...created, departments: [] });
+    const ids = ['00000000-0000-7000-8000-00000000d001', '00000000-0000-7000-8000-00000000d002'];
+
+    await service.create(
+      {
+        name: 'New',
+        email: 'new@x.com',
+        passwordHash: 'h',
+        role: 'AGENT',
+        departmentIds: ids,
+      },
+      COMPANY,
+      tx as never,
+    );
+
+    expect(tx.userDepartment.createMany).toHaveBeenCalledWith({
+      data: ids.map((d) => ({ userId: 'new-id', departmentId: d })),
+    });
+  });
+});

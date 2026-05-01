@@ -12,6 +12,14 @@ export type UserWithDepartments = User & {
   departments: Array<{ department: { id: string; name: string } }>;
 };
 
+export interface CreateUserInput {
+  name: string;
+  email: string;
+  passwordHash: string;
+  role: 'ADMIN' | 'SUPERVISOR' | 'AGENT';
+  departmentIds: string[];
+}
+
 export interface ListUsersFilters {
   role?: 'ADMIN' | 'SUPERVISOR' | 'AGENT' | 'SUPER_ADMIN';
   active?: boolean;
@@ -173,5 +181,32 @@ export class UsersDomainService {
     const nextCursor = hasMore && last ? this.encodeCursor(last.createdAt, last.id) : null;
 
     return { items: trimmed, nextCursor, hasMore };
+  }
+
+  async create(
+    input: CreateUserInput,
+    companyId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<UserWithDepartments> {
+    await this.assertEmailNotInUse(input.email);
+    await this.assertDepartmentsBelongToTenant(input.departmentIds, companyId, tx);
+
+    const created = await tx.user.create({
+      data: {
+        companyId,
+        name: input.name,
+        email: input.email,
+        passwordHash: input.passwordHash,
+        role: input.role,
+      },
+    });
+
+    if (input.departmentIds.length > 0) {
+      await tx.userDepartment.createMany({
+        data: input.departmentIds.map((d) => ({ userId: created.id, departmentId: d })),
+      });
+    }
+
+    return this.findByIdWithDepartments(created.id, companyId, tx);
   }
 }
