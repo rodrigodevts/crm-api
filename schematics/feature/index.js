@@ -69,6 +69,7 @@ function updateAppModule(options) {
     }
 
     // Step 2 — add to @Module imports: [...] array
+    // Limitação conhecida: regex termina no primeiro `]` indentado — quebra se algum entry de `imports:` contiver array aninhada multi-line (ex.: `Module.register({ providers: [...] })`). Solução se acontecer: trocar por ts-morph (~30 linhas).
     const arrayMatch = content.match(/(@Module\(\{[\s\S]*?imports:\s*\[)([\s\S]*?)(\n\s*\],?)/);
     if (!arrayMatch) {
       context.logger.warn(
