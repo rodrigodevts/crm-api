@@ -152,4 +152,37 @@ describe('feature schematic', () => {
     expect(content).toContain(`describe('ContactsController (e2e)'`);
     expect(content).toContain(`it.skip('TODO: validar isolamento multi-tenant'`);
   });
+
+  it('adds import line to app.module.ts', async () => {
+    const tree = await runner.runSchematic('feature', { name: 'contacts' }, buildSeedTree());
+    const content = tree.readContent('/src/app.module.ts');
+    expect(content).toContain(
+      `import { ContactsModule } from './modules/contacts/contacts.module';`,
+    );
+  });
+
+  it('adds class to imports array of @Module', async () => {
+    const tree = await runner.runSchematic('feature', { name: 'contacts' }, buildSeedTree());
+    const content = tree.readContent('/src/app.module.ts');
+    const imports = content.match(/imports:\s*\[([\s\S]*?)\]/)?.[1] ?? '';
+    expect(imports).toContain('HealthModule,');
+    expect(imports).toContain('ContactsModule,');
+  });
+
+  it('is idempotent — running twice does not duplicate import or array entry', async () => {
+    const seed = buildSeedTree();
+    const treeOnce = await runner.runSchematic('feature', { name: 'contacts' }, seed);
+    const treeTwice = await runner.runSchematic('feature', { name: 'contacts' }, treeOnce);
+    const content = treeTwice.readContent('/src/app.module.ts');
+    const importMatches = content.match(/import \{ ContactsModule \}/g) ?? [];
+    expect(importMatches.length).toBe(1);
+    const arrayMatches = content.match(/ContactsModule,/g) ?? [];
+    expect(arrayMatches.length).toBe(1);
+  });
+
+  it('warns and skips when app.module.ts is missing (does not throw)', async () => {
+    const tree = Tree.empty();
+    await expect(runner.runSchematic('feature', { name: 'contacts' }, tree)).resolves.toBeDefined();
+    expect(tree.exists('/src/app.module.ts')).toBe(false);
+  });
 });
