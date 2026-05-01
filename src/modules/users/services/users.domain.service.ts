@@ -12,6 +12,24 @@ export type UserWithDepartments = User & {
   departments: Array<{ department: { id: string; name: string } }>;
 };
 
+export interface ListUsersFilters {
+  role?: 'ADMIN' | 'SUPERVISOR' | 'AGENT' | 'SUPER_ADMIN';
+  active?: boolean;
+  departmentId?: string;
+  search?: string;
+}
+
+export interface ListUsersPagination {
+  cursor?: string;
+  limit: number;
+}
+
+export interface ListUsersResult {
+  items: UserWithDepartments[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 @Injectable()
 export class UsersDomainService {
   constructor(private readonly prisma: PrismaService) {}
@@ -85,5 +103,75 @@ export class UsersDomainService {
       throw new NotFoundException('Usuário não encontrado');
     }
     return user;
+  }
+
+  encodeCursor(createdAt: Date, id: string): string {
+    return Buffer.from(JSON.stringify({ createdAt: createdAt.toISOString(), id }), 'utf8').toString(
+      'base64url',
+    );
+  }
+
+  decodeCursor(cursor: string | undefined): { createdAt: Date; id: string } | null {
+    if (cursor === undefined) return null;
+    try {
+      const decoded = Buffer.from(cursor, 'base64url').toString('utf8');
+      const parsed = JSON.parse(decoded) as { createdAt: string; id: string };
+      return { createdAt: new Date(parsed.createdAt), id: parsed.id };
+    } catch {
+      throw new BadRequestException('Cursor inválido');
+    }
+  }
+
+  async list(
+    companyId: string,
+    filters: ListUsersFilters,
+    pagination: ListUsersPagination,
+  ): Promise<ListUsersResult> {
+    const decoded = this.decodeCursor(pagination.cursor);
+    const conditions: Prisma.UserWhereInput[] = [];
+    if (filters.search) {
+      conditions.push({
+        OR: [
+          { name: { contains: filters.search, mode: 'insensitive' } },
+          { email: { contains: filters.search, mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (decoded) {
+      conditions.push({
+        OR: [
+          { createdAt: { lt: decoded.createdAt } },
+          { createdAt: decoded.createdAt, id: { lt: decoded.id } },
+        ],
+      });
+    }
+
+    const where: Prisma.UserWhereInput = {
+      companyId,
+      ...(filters.active !== false ? { deletedAt: null } : {}),
+      ...(filters.role ? { role: filters.role } : {}),
+      ...(filters.departmentId
+        ? { departments: { some: { departmentId: filters.departmentId } } }
+        : {}),
+      ...(conditions.length > 0 ? { AND: conditions } : {}),
+    };
+
+    const items = await this.prisma.user.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: pagination.limit + 1,
+      include: {
+        departments: {
+          include: { department: { select: { id: true, name: true } } },
+        },
+      },
+    });
+
+    const hasMore = items.length > pagination.limit;
+    const trimmed = hasMore ? items.slice(0, pagination.limit) : items;
+    const last = trimmed[trimmed.length - 1];
+    const nextCursor = hasMore && last ? this.encodeCursor(last.createdAt, last.id) : null;
+
+    return { items: trimmed, nextCursor, hasMore };
   }
 }
