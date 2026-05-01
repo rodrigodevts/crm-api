@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Prisma } from '@prisma/client';
 import { getPrisma } from '../setup-prisma';
 
 describe('FK cascade behavior', () => {
@@ -62,7 +61,11 @@ describe('FK cascade behavior', () => {
     expect(dpt).not.toBeNull();
   });
 
-  it('Restrict: deletar Department com User vinculado falha', async () => {
+  // Department blocking on active tickets is application-layer responsibility (RF-DEPT-5
+  // in audit-03A), not DB-level. UserDepartment is a m:n join table, so its FK to
+  // Department uses Cascade — deleting a Department removes the membership rows but
+  // leaves the User itself intact. This test documents that contract.
+  it('Cascade: deletar Department remove suas UserDepartment, sem afetar User', async () => {
     const prisma = getPrisma();
     const plan = await prisma.plan.create({ data: { name: 'P' } });
     const company = await prisma.company.create({
@@ -82,9 +85,12 @@ describe('FK cascade behavior', () => {
       },
     });
 
-    await expect(prisma.department.delete({ where: { id: dept.id } })).rejects.toThrow(
-      Prisma.PrismaClientKnownRequestError,
-    );
+    expect(await prisma.userDepartment.count()).toBe(1);
+
+    await prisma.department.delete({ where: { id: dept.id } });
+
+    // Membership row gone (Cascade)
+    expect(await prisma.userDepartment.count()).toBe(0);
 
     // User intacto
     const u = await prisma.user.findUnique({ where: { id: user.id } });
