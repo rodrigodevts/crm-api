@@ -77,11 +77,11 @@ describe('feature schematic', () => {
     expect(content).toContain(`import { ContactsDomainService } from './contacts.domain.service';`);
     expect(content).toContain(`export class ContactsApplicationService`);
     expect(content).toContain(`private readonly domainService: ContactsDomainService`);
-    expect(content).toContain(`async list(_companyId: string)`);
-    expect(content).toContain(`async getById(_id: string, _companyId: string)`);
-    expect(content).toContain(`async create(_companyId: string, _input: unknown)`);
-    expect(content).toContain(`async update(_id: string, _companyId: string, _input: unknown)`);
-    expect(content).toContain(`async remove(_id: string, _companyId: string)`);
+    expect(content).toContain(`list(_companyId: string)`);
+    expect(content).toContain(`getById(_id: string, _companyId: string)`);
+    expect(content).toContain(`create(_companyId: string, _input: unknown)`);
+    expect(content).toContain(`update(_id: string, _companyId: string, _input: unknown)`);
+    expect(content).toContain(`remove(_id: string, _companyId: string)`);
     expect((content.match(/throw new NotImplementedException\(\);/g) ?? []).length).toBe(5);
   });
 
@@ -92,8 +92,8 @@ describe('feature schematic', () => {
       `import { Injectable, NotImplementedException } from '@nestjs/common';`,
     );
     expect(content).toContain(`export class ContactsDomainService`);
-    expect(content).toContain(`async list(_companyId: string)`);
-    expect(content).toContain(`async getById(_id: string, _companyId: string)`);
+    expect(content).toContain(`list(_companyId: string)`);
+    expect(content).toContain(`getById(_id: string, _companyId: string)`);
     expect(content).toContain(`// TODO: injetar PrismaService quando criado o módulo Prisma`);
   });
 
@@ -104,11 +104,11 @@ describe('feature schematic', () => {
     expect(content).toContain(`@Controller('contacts')`);
     expect(content).toContain(`export class ContactsController`);
     expect(content).toContain(`private readonly applicationService: ContactsApplicationService`);
-    expect(content).toMatch(/@Get\(\)\s+@ZodSerializerDto\(ContactsResponseDto\)\s+async list\(\)/);
-    expect(content).toMatch(/@Get\(':id'\).*async getById/s);
-    expect(content).toMatch(/@Post\(\).*async create/s);
-    expect(content).toMatch(/@Patch\(':id'\).*async update/s);
-    expect(content).toMatch(/@Delete\(':id'\).*async remove/s);
+    expect(content).toMatch(/@Get\(\)\s+@ZodSerializerDto\(ContactsResponseDto\)\s+list\(\)/);
+    expect(content).toMatch(/@Get\(':id'\).*getById/s);
+    expect(content).toMatch(/@Post\(\).*create/s);
+    expect(content).toMatch(/@Patch\(':id'\).*update/s);
+    expect(content).toMatch(/@Delete\(':id'\).*remove/s);
     expect((content.match(/throw new NotImplementedException\(\);/g) ?? []).length).toBe(5);
   });
 

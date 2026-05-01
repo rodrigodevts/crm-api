@@ -22,28 +22,28 @@ export class <%= classify(name) %>Controller {
 
   @Get()
   @ZodSerializerDto(<%= classify(name) %>ResponseDto)
-  async list(): Promise<<%= classify(name) %>ResponseDto[]> {
+  list(): Promise<<%= classify(name) %>ResponseDto[]> {
     // TODO: extrair @CurrentCompany, paginar (cursor-based per api-conventions.md), chamar applicationService.list
     throw new NotImplementedException();
   }
 
   @Get(':id')
   @ZodSerializerDto(<%= classify(name) %>ResponseDto)
-  async getById(@Param('id') _id: string): Promise<<%= classify(name) %>ResponseDto> {
+  getById(@Param('id') _id: string): Promise<<%= classify(name) %>ResponseDto> {
     // TODO: implementar
     throw new NotImplementedException();
   }
 
   @Post()
   @ZodSerializerDto(<%= classify(name) %>ResponseDto)
-  async create(@Body() _input: Create<%= classify(name) %>Dto): Promise<<%= classify(name) %>ResponseDto> {
+  create(@Body() _input: Create<%= classify(name) %>Dto): Promise<<%= classify(name) %>ResponseDto> {
     // TODO: implementar
     throw new NotImplementedException();
   }
 
   @Patch(':id')
   @ZodSerializerDto(<%= classify(name) %>ResponseDto)
-  async update(
+  update(
     @Param('id') _id: string,
     @Body() _input: Update<%= classify(name) %>Dto,
   ): Promise<<%= classify(name) %>ResponseDto> {
@@ -52,7 +52,7 @@ export class <%= classify(name) %>Controller {
   }
 
   @Delete(':id')
-  async remove(@Param('id') _id: string): Promise<void> {
+  remove(@Param('id') _id: string): Promise<void> {
     // TODO: implementar
     throw new NotImplementedException();
   }
