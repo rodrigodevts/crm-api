@@ -65,4 +65,35 @@ describe('feature schematic', () => {
     expect(content).toContain(`export class MessageTemplatesModule {}`);
     expect(content).toContain(`MessageTemplatesController`);
   });
+
+  it('generates application service with domain service injection', async () => {
+    const tree = await runner.runSchematic('feature', { name: 'contacts' }, buildSeedTree());
+    const content = tree.readContent(
+      '/src/modules/contacts/services/contacts.application.service.ts',
+    );
+    expect(content).toContain(
+      `import { Injectable, NotImplementedException } from '@nestjs/common';`,
+    );
+    expect(content).toContain(`import { ContactsDomainService } from './contacts.domain.service';`);
+    expect(content).toContain(`export class ContactsApplicationService`);
+    expect(content).toContain(`private readonly domainService: ContactsDomainService`);
+    expect(content).toContain(`async list(_companyId: string)`);
+    expect(content).toContain(`async getById(_id: string, _companyId: string)`);
+    expect(content).toContain(`async create(_companyId: string, _input: unknown)`);
+    expect(content).toContain(`async update(_id: string, _companyId: string, _input: unknown)`);
+    expect(content).toContain(`async remove(_id: string, _companyId: string)`);
+    expect((content.match(/throw new NotImplementedException\(\);/g) ?? []).length).toBe(5);
+  });
+
+  it('generates domain service with companyId in signatures', async () => {
+    const tree = await runner.runSchematic('feature', { name: 'contacts' }, buildSeedTree());
+    const content = tree.readContent('/src/modules/contacts/services/contacts.domain.service.ts');
+    expect(content).toContain(
+      `import { Injectable, NotImplementedException } from '@nestjs/common';`,
+    );
+    expect(content).toContain(`export class ContactsDomainService`);
+    expect(content).toContain(`async list(_companyId: string)`);
+    expect(content).toContain(`async getById(_id: string, _companyId: string)`);
+    expect(content).toContain(`// TODO: injetar PrismaService quando criado o módulo Prisma`);
+  });
 });
