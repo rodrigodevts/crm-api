@@ -41,4 +41,22 @@ export class UsersDomainService {
       throw new BadRequestException('Departamento(s) não encontrado(s) no tenant');
     }
   }
+
+  async assertNotLastAdmin(
+    userId: string,
+    companyId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<void> {
+    const others = await tx.user.count({
+      where: {
+        companyId,
+        role: 'ADMIN',
+        deletedAt: null,
+        id: { not: userId },
+      },
+    });
+    if (others === 0) {
+      throw new ConflictException('Não é possível remover o último ADMIN do tenant');
+    }
+  }
 }

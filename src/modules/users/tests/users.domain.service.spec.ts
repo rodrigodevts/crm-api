@@ -130,3 +130,38 @@ describe('UsersDomainService.assertDepartmentsBelongToTenant', () => {
     });
   });
 });
+
+describe('UsersDomainService.assertNotLastAdmin', () => {
+  let service: UsersDomainService;
+  let tx: { user: { count: ReturnType<typeof vi.fn> } };
+  const COMPANY = '00000000-0000-7000-8000-00000000aaaa';
+  const USER_ID = '00000000-0000-7000-8000-000000000001';
+
+  beforeEach(() => {
+    tx = { user: { count: vi.fn() } };
+    service = new UsersDomainService({} as unknown as PrismaService);
+  });
+
+  it('passes when at least one other active ADMIN exists in the tenant', async () => {
+    tx.user.count.mockResolvedValue(1);
+    await expect(
+      service.assertNotLastAdmin(USER_ID, COMPANY, tx as never),
+    ).resolves.toBeUndefined();
+    expect(tx.user.count).toHaveBeenCalledWith({
+      where: {
+        companyId: COMPANY,
+        role: 'ADMIN',
+        deletedAt: null,
+        id: { not: USER_ID },
+      },
+    });
+  });
+
+  it('throws ConflictException when no other active ADMIN exists', async () => {
+    tx.user.count.mockResolvedValue(0);
+    await expect(service.assertNotLastAdmin(USER_ID, COMPANY, tx as never)).rejects.toMatchObject({
+      status: 409,
+      message: 'Não é possível remover o último ADMIN do tenant',
+    });
+  });
+});
