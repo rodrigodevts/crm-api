@@ -36,3 +36,6 @@ Thumbs.db
 
 # misc
 .cache/
+
+# git worktrees (project-local)
+.worktrees/
