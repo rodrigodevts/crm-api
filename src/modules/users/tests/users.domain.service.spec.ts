@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import type { User } from '@prisma/client';
+import type { Prisma, User } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '../../../database/prisma.service';
 import { UsersDomainService } from '../services/users.domain.service';
@@ -436,5 +436,81 @@ describe('UsersDomainService.update', () => {
     expect(tx.userDepartment.createMany).toHaveBeenCalledWith({
       data: ids.map((d) => ({ userId: USER_ID, departmentId: d })),
     });
+  });
+});
+
+describe('UsersDomainService.softDelete', () => {
+  let service: UsersDomainService;
+  let tx: {
+    user: {
+      findFirst: ReturnType<typeof vi.fn>;
+      update: ReturnType<typeof vi.fn>;
+      count: ReturnType<typeof vi.fn>;
+    };
+  };
+  const COMPANY = '00000000-0000-7000-8000-00000000aaaa';
+  const USER_ID = '00000000-0000-7000-8000-000000000001';
+
+  beforeEach(() => {
+    tx = { user: { findFirst: vi.fn(), update: vi.fn(), count: vi.fn() } };
+    service = new UsersDomainService({} as unknown as PrismaService);
+  });
+
+  it('throws NotFoundException when target does not exist', async () => {
+    tx.user.findFirst.mockResolvedValue(null);
+    await expect(service.softDelete(USER_ID, COMPANY, tx as never)).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+
+  it('throws ForbiddenException when target is SUPER_ADMIN', async () => {
+    tx.user.findFirst.mockResolvedValue({
+      ...baseUser({ id: USER_ID, role: 'SUPER_ADMIN' }),
+      departments: [],
+    });
+    await expect(service.softDelete(USER_ID, COMPANY, tx as never)).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+
+  it('throws ConflictException when target is the last ADMIN', async () => {
+    tx.user.findFirst.mockResolvedValue({
+      ...baseUser({ id: USER_ID, role: 'ADMIN' }),
+      departments: [],
+    });
+    tx.user.count.mockResolvedValue(0);
+    await expect(service.softDelete(USER_ID, COMPANY, tx as never)).rejects.toMatchObject({
+      status: 409,
+      message: 'Não é possível remover o último ADMIN do tenant',
+    });
+  });
+
+  it('soft-deletes a non-last ADMIN by setting deletedAt', async () => {
+    tx.user.findFirst.mockResolvedValue({
+      ...baseUser({ id: USER_ID, role: 'ADMIN' }),
+      departments: [],
+    });
+    tx.user.count.mockResolvedValue(1);
+
+    await service.softDelete(USER_ID, COMPANY, tx as never);
+
+    const callArg: Prisma.UserUpdateArgs = {
+      where: { id: USER_ID },
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      data: { deletedAt: expect.any(Date) },
+    };
+    expect(tx.user.update).toHaveBeenCalledWith(callArg);
+  });
+
+  it('soft-deletes an AGENT without checking last-admin', async () => {
+    tx.user.findFirst.mockResolvedValue({
+      ...baseUser({ id: USER_ID, role: 'AGENT' }),
+      departments: [],
+    });
+
+    await service.softDelete(USER_ID, COMPANY, tx as never);
+
+    expect(tx.user.count).not.toHaveBeenCalled();
+    expect(tx.user.update).toHaveBeenCalled();
   });
 });

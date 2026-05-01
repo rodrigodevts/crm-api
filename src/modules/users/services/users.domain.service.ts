@@ -269,4 +269,13 @@ export class UsersDomainService {
       });
     }
   }
+
+  async softDelete(userId: string, companyId: string, tx: Prisma.TransactionClient): Promise<void> {
+    const existing = await this.findByIdWithDepartments(userId, companyId, tx);
+    this.assertNotSuperAdmin(existing);
+    if (existing.role === 'ADMIN') {
+      await this.assertNotLastAdmin(existing.id, companyId, tx);
+    }
+    await tx.user.update({ where: { id: existing.id }, data: { deletedAt: new Date() } });
+  }
 }
