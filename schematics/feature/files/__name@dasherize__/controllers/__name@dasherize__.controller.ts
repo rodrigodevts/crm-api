@@ -23,7 +23,7 @@ export class <%= classify(name) %>Controller {
   @Get()
   @ZodSerializerDto(<%= classify(name) %>ResponseDto)
   async list(): Promise<<%= classify(name) %>ResponseDto[]> {
-    // TODO: extrair @CurrentCompany, paginar, chamar applicationService.list
+    // TODO: extrair @CurrentCompany, paginar (cursor-based per api-conventions.md), chamar applicationService.list
     throw new NotImplementedException();
   }
 
