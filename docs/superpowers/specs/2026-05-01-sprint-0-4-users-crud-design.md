@@ -445,7 +445,7 @@ src/modules/users/
 
 ### 8.1 Unit — `users.domain.service.spec.ts`
 
-Mockar `PrismaClient` com `vitest-mock-extended` (mesmo padrão do auth domain spec). Cobrir **só** regra de negócio:
+Mockar `PrismaClient` com `vi.fn()` ad-hoc por método (mesmo padrão do `auth.domain.service.spec.ts`: `prisma = { user: { findUnique: vi.fn() } }` + `as unknown as PrismaService`). Cobrir **só** regra de negócio:
 
 - `assertNotSuperAdmin` — SUPER_ADMIN throws `ForbiddenException`; ADMIN/SUPERVISOR/AGENT passam.
 - `assertDepartmentsBelongToTenant` — count < deptIds.length throws `BadRequestException`; igual passa; lista vazia passa sem chamar Prisma.
