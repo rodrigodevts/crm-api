@@ -226,8 +226,6 @@ model CompanySettings {
 
   company            Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   defaultBotChatFlow ChatFlow? @relation(fields: [defaultBotChatFlowId], references: [id], onDelete: SetNull)
-
-  @@index([companyId])
 }
 
 model User {
@@ -383,6 +381,7 @@ model CloseReason {
 
   @@unique([companyId, name])
   @@index([companyId])
+  @@index([companyId, funnelId])
 }
 
 model CloseReasonDepartment {
@@ -464,6 +463,7 @@ model BusinessHoliday {
   date          DateTime @db.Date
   name          String
   appliesToAll  Boolean  @default(true)
+  // No DB-level FK enforcement on UUID arrays — application must clean up stale ids when a Department is deleted.
   departmentIds String[] @db.Uuid
 
   createdAt DateTime @default(now())
@@ -521,6 +521,7 @@ model MessageTemplate {
   company           Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
   channelConnection ChannelConnection @relation(fields: [channelConnectionId], references: [id], onDelete: Cascade)
 
+  // channelConnectionId is tenant-scoped; uniqueness below is implicitly per-tenant.
   @@unique([channelConnectionId, externalId])
   @@unique([channelConnectionId, name, language])
   @@index([companyId, status])
@@ -553,6 +554,7 @@ model WebhookSubscription {
 
   channelConnectionId String? @db.Uuid
 
+  // TODO(Phase-3a): encrypt at rest (AES-256-GCM via EncryptionService) — currently plain text. authConfig will be encrypted similarly.
   secret     String
   authType   WebhookAuthType @default(NONE)
   authConfig Bytes?
@@ -678,6 +680,7 @@ model Contact {
 
   @@unique([companyId, phoneNumber])
   @@index([companyId])
+  @@index([companyId, leadStatusId])
 }
 
 /// STUB — expanded in Phase 1
