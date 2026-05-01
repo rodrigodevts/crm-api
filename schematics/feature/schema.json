@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "Feature",
+  "title": "Feature Generator",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome da feature em kebab-case (ex: contacts, message-templates)",
+      "$default": { "$source": "argv", "index": 0 },
+      "x-prompt": "Qual o nome da feature (kebab-case)?",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    }
+  },
+  "required": ["name"]
+}

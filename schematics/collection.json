@@ -1,0 +1,10 @@
+{
+  "$schema": "../node_modules/@angular-devkit/schematics/collection-schema.json",
+  "schematics": {
+    "feature": {
+      "description": "Gera módulo de 3 camadas (controller + application service + domain service + schemas + tests)",
+      "factory": "./feature/index#feature",
+      "schema": "./feature/schema.json"
+    }
+  }
+}
