@@ -7,6 +7,7 @@ export default defineConfig({
     globals: false,
     root: './',
     include: ['src/**/*.spec.ts', 'test/**/*.spec.ts'],
+    exclude: ['node_modules/**', 'dist/**', 'test/schema/**'],
   },
   esbuild: false,
   oxc: false,
