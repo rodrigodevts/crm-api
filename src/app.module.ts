@@ -6,6 +6,7 @@ import { ZodValidationPipe } from 'nestjs-zod';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ZodExceptionFilter } from './common/filters/zod-exception.filter';
 import { validateEnv } from './config/env.schema';
+import { PrismaModule } from './database/prisma.module';
 import { HealthModule } from './modules/health/health.module';
 
 @Module({
@@ -25,6 +26,7 @@ import { HealthModule } from './modules/health/health.module';
           : { transport: { target: 'pino-pretty', options: { singleLine: true } } }),
       },
     }),
+    PrismaModule,
     HealthModule,
   ],
   providers: [
