@@ -99,14 +99,15 @@ Fase 9+ (Backlog, IA quando priorizada)
 
 ### Setup
 
-- [ ] Repos `crm-api` e `crm-web` no GitHub sob AGPLv3
+- [x] Repo `crm-api` no GitHub sob AGPLv3
+- [ ] Repo `crm-web` no GitHub sob AGPLv3
 - [ ] Repo `crm-specs` privado
-- [ ] CI/CD básico (GitHub Actions)
-- [ ] Docker Compose: postgres + redis + minio
-- [ ] Backend NestJS 11 + **Fastify adapter** (`@nestjs/platform-fastify`)
-- [ ] **Zod + nestjs-zod** configurado (ZodValidationPipe global, ZodExceptionFilter)
-- [ ] **OpenAPI + Scalar** configurado em `/api/v1/docs` (UI) e `/api/v1/openapi` (JSON)
-- [ ] TypeScript estrito (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`)
+- [x] CI/CD básico (GitHub Actions) — `.github/workflows/ci.yml`
+- [x] Docker Compose: postgres + redis + minio — `docker-compose.yml`
+- [x] Backend NestJS 11 + **Fastify adapter** (`@nestjs/platform-fastify`)
+- [x] **Zod + nestjs-zod** configurado (ZodValidationPipe global, ZodExceptionFilter)
+- [x] **OpenAPI + Scalar** configurado em `/api/v1/docs` (UI) e `/api/v1/openapi.json` (JSON)
+- [x] TypeScript estrito (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`)
 - [ ] Frontend Next.js 15 + Tailwind + shadcn/ui
 - [ ] **Kubb configurado no `crm-web`** (`kubb.config.ts`, comando `pnpm generate:api`)
 - [ ] Pipeline de geração de tipos do frontend testada com endpoint dummy
@@ -179,13 +180,13 @@ Fase 9+ (Backlog, IA quando priorizada)
 
 ### Documentação
 
-- [ ] `ARCHITECTURE.md` na raiz (cópia da v5)
-- [ ] `ROADMAP.md` na raiz (cópia da v5)
-- [ ] `CLAUDE.md` na raiz (instruções pro Claude Code)
-- [ ] `README.md` com setup local
-- [ ] Pasta `docs/integrations/` criada (vazia, preenchida em Fase 1)
-- [ ] Pasta `docs/chatwoot-reference/` criada (opcional)
-- [ ] Diretrizes de PR no `CONTRIBUTING.md` (anti-checks de multi-tenant)
+- [x] `ARCHITECTURE.md` na raiz (cópia da v5)
+- [x] `ROADMAP.md` na raiz (cópia da v5)
+- [x] `CLAUDE.md` na raiz (instruções pro Claude Code)
+- [x] `README.md` com setup local
+- [x] Pasta `docs/integrations/` criada (vazia, preenchida em Fase 1)
+- [x] Pasta `docs/chatwoot-reference/` criada (opcional)
+- [x] Diretrizes de PR no `CONTRIBUTING.md` (anti-checks de multi-tenant)
 
 ### Deploy
 
@@ -672,17 +673,17 @@ A arquitetura atual **não bloqueia** essa evolução.
 
 ## 17. Rastreamento
 
-| Fase    | Início | Fim | Status     | Notas          |
-| ------- | ------ | --- | ---------- | -------------- |
-| Fase 0  | —      | —   | aguardando | —              |
-| Fase 1  | —      | —   | aguardando | —              |
-| Fase 2  | —      | —   | aguardando | —              |
-| Fase 3a | —      | —   | aguardando | —              |
-| Fase 3b | —      | —   | aguardando | —              |
-| Fase 4  | —      | —   | aguardando | —              |
-| Fase 5  | —      | —   | aguardando | Pré-req Fase 8 |
-| Fase 6  | —      | —   | aguardando | —              |
-| Fase 7  | —      | —   | aguardando | —              |
-| Fase 8  | —      | —   | aguardando | Requer Fase 5  |
-| Fase 9+ | —      | —   | aguardando | Backlog        |
-| IA      | —      | —   | sem prazo  | —              |
+| Fase    | Início  | Fim | Status       | Notas                                                            |
+| ------- | ------- | --- | ------------ | ---------------------------------------------------------------- |
+| Fase 0  | 2026-04 | —   | em andamento | Setup, gerador 3 camadas e docs prontos. Próximo: Prisma + auth. |
+| Fase 1  | —       | —   | aguardando   | —                                                                |
+| Fase 2  | —       | —   | aguardando   | —                                                                |
+| Fase 3a | —       | —   | aguardando   | —                                                                |
+| Fase 3b | —       | —   | aguardando   | —                                                                |
+| Fase 4  | —       | —   | aguardando   | —                                                                |
+| Fase 5  | —       | —   | aguardando   | Pré-req Fase 8                                                   |
+| Fase 6  | —       | —   | aguardando   | —                                                                |
+| Fase 7  | —       | —   | aguardando   | —                                                                |
+| Fase 8  | —       | —   | aguardando   | Requer Fase 5                                                    |
+| Fase 9+ | —       | —   | aguardando   | Backlog                                                          |
+| IA      | —       | —   | sem prazo    | —                                                                |
