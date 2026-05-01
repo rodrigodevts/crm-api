@@ -3,9 +3,14 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import type { Prisma, User } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
+
+export type UserWithDepartments = User & {
+  departments: Array<{ department: { id: string; name: string } }>;
+};
 
 @Injectable()
 export class UsersDomainService {
@@ -58,5 +63,27 @@ export class UsersDomainService {
     if (others === 0) {
       throw new ConflictException('Não é possível remover o último ADMIN do tenant');
     }
+  }
+
+  async findByIdWithDepartments(
+    userId: string,
+    companyId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<UserWithDepartments> {
+    const db = tx ?? this.prisma;
+    const user = await db.user.findFirst({
+      where: { id: userId, companyId, deletedAt: null },
+      include: {
+        departments: {
+          include: {
+            department: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+    if (!user) {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+    return user;
   }
 }
