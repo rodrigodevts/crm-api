@@ -96,4 +96,19 @@ describe('feature schematic', () => {
     expect(content).toContain(`async getById(_id: string, _companyId: string)`);
     expect(content).toContain(`// TODO: injetar PrismaService quando criado o módulo Prisma`);
   });
+
+  it('generates controller with 5 CRUD stubs', async () => {
+    const tree = await runner.runSchematic('feature', { name: 'contacts' }, buildSeedTree());
+    const content = tree.readContent('/src/modules/contacts/controllers/contacts.controller.ts');
+    expect(content).toContain(`@ApiTags('contacts')`);
+    expect(content).toContain(`@Controller('contacts')`);
+    expect(content).toContain(`export class ContactsController`);
+    expect(content).toContain(`private readonly applicationService: ContactsApplicationService`);
+    expect(content).toMatch(/@Get\(\)\s+@ZodSerializerDto\(ContactsResponseDto\)\s+async list\(\)/);
+    expect(content).toMatch(/@Get\(':id'\).*async getById/s);
+    expect(content).toMatch(/@Post\(\).*async create/s);
+    expect(content).toMatch(/@Patch\(':id'\).*async update/s);
+    expect(content).toMatch(/@Delete\(':id'\).*async remove/s);
+    expect((content.match(/throw new NotImplementedException\(\);/g) ?? []).length).toBe(5);
+  });
 });
