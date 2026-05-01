@@ -190,7 +190,7 @@ src/modules/feature-name/
 
 ```typescript
 // schemas/create-ticket.schema.ts
-import { z } from 'nestjs-zod/z';
+import { z } from 'zod';
 
 export const CreateTicketSchema = z
   .object({
@@ -223,7 +223,7 @@ Comando alvo: `pnpm g:feature <nome>` (ou `pnpm nest g --collection ./schematics
 
 ```typescript
 // schemas/accept-ticket-response.schema.ts
-import { z } from 'nestjs-zod/z';
+import { z } from 'zod';
 
 export const AcceptTicketResponseSchema = z
   .object({
