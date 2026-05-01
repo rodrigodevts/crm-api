@@ -380,16 +380,17 @@ Cada um expõe operações relacionadas. Application service compõe.
 
 ### Frontend (`crm-web`)
 
-| Componente                                   | Versão                                 |
+<!-- prettier-ignore -->
+| Componente                                   | Versão                                 | Justificativa                                                                        |
 | -------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------ |
-| Next.js                                      | 15+ App Router                         |
-| Tailwind CSS                                 | 4+                                     |
-| shadcn/ui                                    | latest                                 |
-| TanStack Query                               | 5+                                     |
-| Zustand                                      | latest                                 |
-| React Hook Form + Zod                        | latest (Zod compartilhado com backend) |
-| socket.io-client                             | 4+                                     |
-| React Flow                                   | 12+ (Fase 6)                           |
+| Next.js                                      | 15+ App Router                         |                                                                                      |
+| Tailwind CSS                                 | 4+                                     |                                                                                      |
+| shadcn/ui                                    | latest                                 |                                                                                      |
+| TanStack Query                               | 5+                                     |                                                                                      |
+| Zustand                                      | latest                                 |                                                                                      |
+| React Hook Form + Zod                        | latest (Zod compartilhado com backend) |                                                                                      |
+| socket.io-client                             | 4+                                     |                                                                                      |
+| React Flow                                   | 12+ (Fase 6)                           |                                                                                      |
 | `@kubb/cli` + `@kubb/swagger-tanstack-query` | latest                                 | Geração automática de tipos TS e hooks TanStack Query a partir do OpenAPI do backend |
 
 ### Infraestrutura
@@ -922,8 +923,9 @@ DeepWiki documentação: https://deepwiki.com/chatwoot/chatwoot
 
 Validados durante auditorias:
 
+<!-- prettier-ignore -->
 - Multi-tenancy via foreign key (Account/companyId)
-- Polimorfismo de canais (Channel::\* / Channel adapters)
+- Polimorfismo de canais (Channel::* / Channel adapters)
 - Pub-sub interno (Wisper / EventEmitter)
 - State machine de Conversation (mapeada em nosso Ticket)
 - Namespacing de API por escopo (Platform/Application/Public)

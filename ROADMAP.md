@@ -11,13 +11,14 @@
 
 ## Sumário
 
+<!-- prettier-ignore -->
 1. Premissas
 2. Critério de "fase pronta"
 3. Mapa geral de fases
 4. Dependências entre fases
-   5-14. Fases 0-9
-5. Fase futura — IA
-6. Rastreamento
+5-14. Fases 0-9
+15. Fase futura — IA
+16. Rastreamento
 
 ---
 
