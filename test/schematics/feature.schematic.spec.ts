@@ -111,4 +111,30 @@ describe('feature schematic', () => {
     expect(content).toMatch(/@Delete\(':id'\).*async remove/s);
     expect((content.match(/throw new NotImplementedException\(\);/g) ?? []).length).toBe(5);
   });
+
+  it('generates 3 Zod schemas with placeholder structure', async () => {
+    const tree = await runner.runSchematic('feature', { name: 'contacts' }, buildSeedTree());
+
+    const create = tree.readContent('/src/modules/contacts/schemas/create-contacts.schema.ts');
+    expect(create).toContain(`import { createZodDto } from 'nestjs-zod';`);
+    expect(create).toContain(`import { z } from 'zod';`);
+    expect(create).toContain(`export const CreateContactsSchema`);
+    expect(create).toContain(
+      `export class CreateContactsDto extends createZodDto(CreateContactsSchema) {}`,
+    );
+    expect(create).toContain(`// TODO: definir campos do payload`);
+
+    const update = tree.readContent('/src/modules/contacts/schemas/update-contacts.schema.ts');
+    expect(update).toContain(`export const UpdateContactsSchema`);
+    expect(update).toContain(
+      `export class UpdateContactsDto extends createZodDto(UpdateContactsSchema) {}`,
+    );
+
+    const response = tree.readContent('/src/modules/contacts/schemas/contacts-response.schema.ts');
+    expect(response).toContain(`export const ContactsResponseSchema`);
+    expect(response).toContain(`id: z.string().uuid()`);
+    expect(response).toContain(
+      `export class ContactsResponseDto extends createZodDto(ContactsResponseSchema) {}`,
+    );
+  });
 });
