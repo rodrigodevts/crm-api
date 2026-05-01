@@ -137,4 +137,19 @@ describe('feature schematic', () => {
       `export class ContactsResponseDto extends createZodDto(ContactsResponseSchema) {}`,
     );
   });
+
+  it('generates domain spec with skipped placeholder test', async () => {
+    const tree = await runner.runSchematic('feature', { name: 'contacts' }, buildSeedTree());
+    const content = tree.readContent('/src/modules/contacts/tests/contacts.domain.service.spec.ts');
+    expect(content).toContain(`import { describe, it } from 'vitest';`);
+    expect(content).toContain(`describe('ContactsDomainService'`);
+    expect(content).toContain(`it.skip('TODO: cobrir regras de negócio do domain service'`);
+  });
+
+  it('generates controller e2e spec with skipped multi-tenant placeholder', async () => {
+    const tree = await runner.runSchematic('feature', { name: 'contacts' }, buildSeedTree());
+    const content = tree.readContent('/src/modules/contacts/tests/contacts.controller.e2e-spec.ts');
+    expect(content).toContain(`describe('ContactsController (e2e)'`);
+    expect(content).toContain(`it.skip('TODO: validar isolamento multi-tenant'`);
+  });
 });
