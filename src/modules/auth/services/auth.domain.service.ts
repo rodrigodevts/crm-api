@@ -6,6 +6,7 @@ import type { Prisma, User } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 
 const GENERIC_LOGIN_ERROR = 'E-mail ou senha inválidos';
+const GENERIC_REFRESH_ERROR = 'Sessão expirada. Faça login novamente.';
 
 const ACCESS_TTL = '15m';
 const REFRESH_TTL = '7d';
@@ -14,6 +15,16 @@ const REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 interface IssuedTokens {
   accessToken: string;
   refreshToken: string;
+}
+
+interface RefreshPayload {
+  sub: string;
+  jti: string;
+  exp?: number;
+}
+
+interface RotateResult extends IssuedTokens {
+  user: User;
 }
 
 @Injectable()
@@ -74,6 +85,46 @@ export class AuthDomainService {
     });
 
     return { accessToken, refreshToken };
+  }
+
+  async rotateRefresh(
+    refreshToken: string,
+    ipAddress: string | null,
+    userAgent: string | null,
+  ): Promise<RotateResult> {
+    const refreshSecret = process.env.JWT_REFRESH_SECRET;
+    if (!refreshSecret) throw new Error('JWT_REFRESH_SECRET not configured');
+
+    let payload: RefreshPayload;
+    try {
+      payload = this.jwt.verify<RefreshPayload>(refreshToken, { secret: refreshSecret });
+    } catch {
+      throw new UnauthorizedException(GENERIC_REFRESH_ERROR);
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const tokenHash = this.hashJti(payload.jti);
+      const row = await tx.refreshToken.findUnique({ where: { tokenHash } });
+      if (!row || row.revokedAt !== null || row.expiresAt.getTime() <= Date.now()) {
+        throw new UnauthorizedException(GENERIC_REFRESH_ERROR);
+      }
+      if (row.userId !== payload.sub) {
+        throw new UnauthorizedException(GENERIC_REFRESH_ERROR);
+      }
+
+      const user = await tx.user.findUnique({ where: { id: row.userId } });
+      if (!user || user.deletedAt !== null) {
+        throw new UnauthorizedException(GENERIC_REFRESH_ERROR);
+      }
+
+      await tx.refreshToken.updateMany({
+        where: { tokenHash, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+
+      const tokens = await this.issueTokens(user, ipAddress, userAgent, tx);
+      return { ...tokens, user };
+    });
   }
 
   hashJti(jti: string): string {
