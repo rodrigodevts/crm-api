@@ -1,6 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import type { User } from '@prisma/client';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PrismaService } from '../../../database/prisma.service';
 import { UsersDomainService } from '../services/users.domain.service';
 
@@ -44,5 +44,49 @@ describe('UsersDomainService.assertNotSuperAdmin', () => {
 
   it('passes when target is AGENT', () => {
     expect(() => service.assertNotSuperAdmin(baseUser({ role: 'AGENT' }))).not.toThrow();
+  });
+});
+
+describe('UsersDomainService.assertEmailNotInUse', () => {
+  let service: UsersDomainService;
+  let prisma: { user: { findUnique: ReturnType<typeof vi.fn> } };
+
+  beforeEach(() => {
+    prisma = { user: { findUnique: vi.fn() } };
+    service = new UsersDomainService(prisma as unknown as PrismaService);
+  });
+
+  it('passes when email is not in use', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    await expect(service.assertEmailNotInUse('new@x.com')).resolves.toBeUndefined();
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { email: 'new@x.com' } });
+  });
+
+  it('throws ConflictException when another user has the email (any tenant, including soft-deleted)', async () => {
+    prisma.user.findUnique.mockResolvedValue(baseUser({ id: 'other-id', email: 'taken@x.com' }));
+    await expect(service.assertEmailNotInUse('taken@x.com')).rejects.toMatchObject({
+      status: 409,
+      message: 'Email já cadastrado',
+    });
+  });
+
+  it('throws ConflictException even when email belongs to a soft-deleted user', async () => {
+    prisma.user.findUnique.mockResolvedValue(
+      baseUser({ id: 'deleted-id', email: 'old@x.com', deletedAt: new Date() }),
+    );
+    await expect(service.assertEmailNotInUse('old@x.com')).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('passes when email belongs to the same user (exceptUserId)', async () => {
+    const existing = baseUser({ id: 'self-id', email: 'self@x.com' });
+    prisma.user.findUnique.mockResolvedValue(existing);
+    await expect(service.assertEmailNotInUse('self@x.com', 'self-id')).resolves.toBeUndefined();
+  });
+
+  it('throws when email belongs to a different user even when exceptUserId is provided', async () => {
+    prisma.user.findUnique.mockResolvedValue(baseUser({ id: 'other-id', email: 'taken@x.com' }));
+    await expect(service.assertEmailNotInUse('taken@x.com', 'self-id')).rejects.toMatchObject({
+      status: 409,
+    });
   });
 });
