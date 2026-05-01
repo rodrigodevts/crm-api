@@ -1,4 +1,5 @@
 import { UnauthorizedException } from '@nestjs/common';
+import type { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import type { User } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -66,5 +67,56 @@ describe('AuthDomainService.validateCredentials', () => {
     await expect(service.validateCredentials('user@test.local', 'valid-pass')).rejects.toThrow(
       new UnauthorizedException('E-mail ou senha inválidos'),
     );
+  });
+});
+
+describe('AuthDomainService.issueTokens', () => {
+  let service: AuthDomainService;
+  let prisma: { refreshToken: { create: ReturnType<typeof vi.fn> } };
+  let jwt: { sign: ReturnType<typeof vi.fn> };
+
+  beforeEach(() => {
+    prisma = { refreshToken: { create: vi.fn().mockResolvedValue({}) } };
+    jwt = {
+      sign: vi.fn(
+        (payload: object, options: { secret: string; expiresIn: string }) =>
+          `signed:${options.secret}:${JSON.stringify(payload)}`,
+      ),
+    };
+    service = new AuthDomainService(prisma as never, jwt as unknown as JwtService);
+    process.env.JWT_ACCESS_SECRET = 'access-secret';
+    process.env.JWT_REFRESH_SECRET = 'refresh-secret';
+  });
+
+  it('emits an access JWT with sub/companyId/role and a refresh JWT with jti', async () => {
+    const user = baseUser({ role: 'ADMIN' });
+
+    const result = await service.issueTokens(user, '127.0.0.1', 'jest', undefined);
+
+    expect(jwt.sign).toHaveBeenCalledWith(
+      expect.objectContaining({ sub: user.id, companyId: user.companyId, role: 'ADMIN' }),
+      expect.objectContaining({ secret: 'access-secret', expiresIn: '15m' }),
+    );
+    expect(jwt.sign).toHaveBeenCalledWith(
+      expect.objectContaining({ sub: user.id, jti: expect.any(String) as unknown }),
+      expect.objectContaining({ secret: 'refresh-secret', expiresIn: '7d' }),
+    );
+    expect(result.accessToken).toContain('access-secret');
+    expect(result.refreshToken).toContain('refresh-secret');
+  });
+
+  it('persists a RefreshToken row with sha256(jti) hex hash and tenant context', async () => {
+    const user = baseUser();
+
+    await service.issueTokens(user, '127.0.0.1', 'jest', undefined);
+
+    expect(prisma.refreshToken.create).toHaveBeenCalledTimes(1);
+    const call = prisma.refreshToken.create.mock.calls[0]![0] as unknown as {
+      data: { tokenHash: string; userId: string; companyId: string; expiresAt: Date };
+    };
+    expect(call.data.userId).toBe(user.id);
+    expect(call.data.companyId).toBe(user.companyId);
+    expect(call.data.tokenHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(call.data.expiresAt.getTime()).toBeGreaterThan(Date.now());
   });
 });
