@@ -35,6 +35,15 @@
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@swc/core",
+      "bcrypt",
+      "lefthook",
+      "prisma"
+    ]
+  },
   "dependencies": {
     "@nestjs/common": "^11.1.19",
     "@nestjs/config": "^4.0.4",
