@@ -23,7 +23,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
-    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "g:feature": "nest g --collection ./schematics/collection.json feature"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.19",
@@ -41,6 +42,8 @@
     "zod": "^4.4.1"
   },
   "devDependencies": {
+    "@angular-devkit/core": "^21.2.9",
+    "@angular-devkit/schematics": "^21.2.9",
     "@eslint/js": "^9.39.4",
     "@nestjs/cli": "^11.0.21",
     "@nestjs/schematics": "^11.1.0",

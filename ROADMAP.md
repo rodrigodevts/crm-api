@@ -11,6 +11,7 @@
 
 ## Sumário
 
+<!-- prettier-ignore -->
 1. Premissas
 2. Critério de "fase pronta"
 3. Mapa geral de fases
@@ -112,24 +113,27 @@ Fase 9+ (Backlog, IA quando priorizada)
 
 ### Gerador de boilerplate (3 camadas) — NOVO
 
-- [ ] Schematic customizado do NestJS CLI
-- [ ] Comando `pnpm nest g feature <nome>` cria:
+- [x] Schematic customizado em `crm-api/schematics/`
+- [x] Comando `pnpm g:feature <nome>` (alias) ou `pnpm nest g --collection ./schematics/collection.json feature <nome>` cria:
   - `feature.module.ts`
-  - `controllers/feature.controller.ts` (com endpoints CRUD vazios)
-  - `services/feature.application.service.ts` (com métodos vazios)
-  - `services/feature.domain.service.ts` (com métodos vazios)
-  - `schemas/create-feature.schema.ts`, `update-feature.schema.ts`, `feature-response.schema.ts`
-  - `tests/feature.domain.service.spec.ts` (com setup vazio)
-- [ ] Documentação de uso em `crm-api/README.md`
+  - `controllers/feature.controller.ts` (5 endpoints CRUD com `NotImplementedException`)
+  - `services/feature.application.service.ts` (5 métodos placeholder)
+  - `services/feature.domain.service.ts` (5 métodos placeholder, assinaturas com `companyId`)
+  - `schemas/create-feature.schema.ts`, `update-feature.schema.ts`, `feature-response.schema.ts` (Zod placeholders com TODO)
+  - `tests/feature.domain.service.spec.ts` + `tests/feature.controller.e2e-spec.ts` (vitest, com `it.skip` placeholder)
+- [x] Atualização automática de `src/app.module.ts` (import + entrada em `imports: [...]`)
+- [x] Documentação de uso em `crm-api/README.md` e `crm-api/CONTRIBUTING.md`
 
 ### Schema do núcleo (Prisma)
 
 **Entidades base:**
+
 - [ ] `Plan`, `Company`, `CompanySettings` (13 flags incluindo `hideBotTicketsFromAgents`)
 - [ ] `User` (4 perfis), `RefreshToken`
 - [ ] `Department` (workingHours, SLA, distributionMode preparados)
 
 **Cadastros:**
+
 - [ ] `Tag` (com scope), `QuickReply` (escopo COMPANY/PERSONAL)
 - [ ] `CloseReason` + `CloseReasonDepartment`
 - [ ] `SalesFunnel`, `LeadStatus`
@@ -137,9 +141,11 @@ Fase 9+ (Backlog, IA quando priorizada)
 - [ ] `BusinessHoliday` (schema preparado, fase 4+)
 
 **Integrações (schema apenas):**
+
 - [ ] `IntegrationLink`, `MessageTemplate`, `BotCredential`, `WebhookSubscription`, `WebhookDelivery`
 
 **Auditoria:**
+
 - [ ] `AuditLog`
 
 ### Auth (estrutura 3 camadas)
@@ -189,7 +195,7 @@ Fase 9+ (Backlog, IA quando priorizada)
 
 - Criar Company via SUPER_ADMIN → registrar primeiro ADMIN
 - ADMIN cria Departments, Users, Tags, CloseReasons usando 3 camadas em todos
-- Gerar feature nova com `pnpm nest g feature exemplo` e ver estrutura completa criada
+- Gerar feature nova com `pnpm g:feature exemplo` e ver estrutura completa + `app.module.ts` atualizado
 - Force-logout funciona em até 15min
 
 ### Anti-objetivos
@@ -304,14 +310,17 @@ Fase 9+ (Backlog, IA quando priorizada)
 ### Módulo `tickets` (3 camadas completas)
 
 **Domain services:**
+
 - [ ] `tickets.domain.service.ts` (state machine)
 - [ ] `ticket-log.domain.service.ts` (logging append-only)
 - [ ] `ticket-protocol.domain.service.ts` (geração transacional)
 
 **Application service:**
+
 - [ ] `tickets.application.service.ts` (orquestração de aceitar, transferir, fechar, reabrir, etc)
 
 **Endpoints (controller):**
+
 - [ ] Listar com WHERE complexo + 12+ flags
 - [ ] CRUD básico cursor pagination
 - [ ] Aceitar (lock otimista)
@@ -384,16 +393,19 @@ Race conditions em aceite/transferência. Mitigado com lock otimista + testes de
 ### Módulo `chat-flows` (3 camadas)
 
 **Domain services:**
+
 - [ ] `chat-flows.domain.service.ts` (CRUD, validação)
 - [ ] `flow-execution.domain.service.ts` (state machine de execução)
 - [ ] `chat-flow-validator.domain.service.ts` (validação automática)
 
 **Application service:**
+
 - [ ] `chat-flows.application.service.ts`
 
 ### Módulo `bot-engine` (3 camadas)
 
 **Domain services:**
+
 - [ ] `bot-engine.domain.service.ts` (orquestração de execução)
 - [ ] Node executors em domain services dedicados (um por tipo):
   - [ ] `start-node.executor.ts`, `end-node.executor.ts`
@@ -647,6 +659,7 @@ Race conditions em aceite/transferência. Mitigado com lock otimista + testes de
 **Status:** descartado do escopo MVP por decisão estratégica.
 
 **Quando priorizar:**
+
 - Após produto base validado em produção
 - Com dores reais dos clientes mapeadas
 - Com mercado de LLMs mais estabilizado

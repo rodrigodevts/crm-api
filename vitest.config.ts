@@ -6,7 +6,7 @@ export default defineConfig({
   test: {
     globals: false,
     root: './',
-    include: ['src/**/*.spec.ts'],
+    include: ['src/**/*.spec.ts', 'test/**/*.spec.ts'],
   },
   esbuild: false,
   oxc: false,
