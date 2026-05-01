@@ -5,7 +5,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     include: ['src/**/*.e2e-spec.ts', 'test/e2e/**/*.e2e-spec.ts'],
-    setupFiles: ['test/setup-prisma.ts'],
+    setupFiles: ['test/e2e/env-setup.ts', 'test/setup-prisma.ts'],
     testTimeout: 60_000,
     hookTimeout: 120_000,
     pool: 'forks',
