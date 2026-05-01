@@ -232,7 +232,7 @@ model User {
   id           String   @id @default(uuid(7)) @db.Uuid
   companyId    String   @db.Uuid
   name         String
-  email        String
+  email        String   @unique
   passwordHash String
   role         UserRole
 
@@ -250,7 +250,6 @@ model User {
   quickReplies  QuickReply[]
   auditLogs     AuditLog[]
 
-  @@unique([companyId, email])
   @@index([companyId])
   @@index([companyId, role])
 }

@@ -23,7 +23,7 @@ describe('multi-tenant unique constraints', () => {
     return { companyA: a.id, companyB: b.id };
   }
 
-  it('User.email é único por company mas duplicável entre companies', async () => {
+  it('User.email é globalmente único (não duplicável entre companies)', async () => {
     const prisma = getPrisma();
     const { companyA, companyB } = await setupTwoCompanies();
 
@@ -37,7 +37,7 @@ describe('multi-tenant unique constraints', () => {
       },
     });
 
-    // Mesmo email em outra company → ok
+    // Mesmo email em outra company → falha (decisão revisada na Sprint 0.3)
     await expect(
       prisma.user.create({
         data: {
@@ -48,9 +48,9 @@ describe('multi-tenant unique constraints', () => {
           role: 'AGENT',
         },
       }),
-    ).resolves.toBeDefined();
+    ).rejects.toThrow(Prisma.PrismaClientKnownRequestError);
 
-    // Mesmo email na mesma company → falha
+    // Mesma company, mesmo email → também falha
     await expect(
       prisma.user.create({
         data: {

@@ -49,8 +49,9 @@ async function main(): Promise<void> {
   const normalizedEmail = superAdminEmail.toLowerCase();
 
   const superAdmin = await prisma.user.upsert({
-    where: { companyId_email: { companyId: company.id, email: normalizedEmail } },
+    where: { email: normalizedEmail },
     update: {
+      companyId: company.id,
       passwordHash,
       role: 'SUPER_ADMIN',
     },

@@ -151,10 +151,11 @@ Fase 9+ (Backlog, IA quando priorizada)
 
 ### Auth (estrutura 3 camadas)
 
-- [ ] Módulo `auth/` com 3 camadas
-- [ ] Register, login, refresh, force-logout
-- [ ] Decorators `@CurrentUser`, `@CurrentCompany`
-- [ ] Hierarquia de roles
+- [x] Módulo `auth/` com 3 camadas
+- [x] Register, login, refresh, force-logout
+  > Sprint 0.3: login + refresh + logout (self) shippados como endpoints. Register e force-logout-de-outro-user são responsabilidade do Users CRUD (próxima sprint); o método domain `revokeAllRefreshTokens` já está pronto e testado.
+- [x] Decorators `@CurrentUser`, `@CurrentCompany`
+- [x] Hierarquia de roles
 
 ### Services foundationais
 
@@ -673,17 +674,17 @@ A arquitetura atual **não bloqueia** essa evolução.
 
 ## 17. Rastreamento
 
-| Fase    | Início  | Fim | Status       | Notas                                                                   |
-| ------- | ------- | --- | ------------ | ----------------------------------------------------------------------- |
+| Fase    | Início  | Fim | Status       | Notas                                                                     |
+| ------- | ------- | --- | ------------ | ------------------------------------------------------------------------- |
 | Fase 0  | 2026-04 | —   | em andamento | Setup, gerador 3 camadas, docs e schema do núcleo prontos. Próximo: auth. |
-| Fase 1  | —       | —   | aguardando   | —                                                                       |
-| Fase 2  | —       | —   | aguardando   | —                                                                       |
-| Fase 3a | —       | —   | aguardando   | —                                                                       |
-| Fase 3b | —       | —   | aguardando   | —                                                                       |
-| Fase 4  | —       | —   | aguardando   | —                                                                       |
-| Fase 5  | —       | —   | aguardando   | Pré-req Fase 8                                                          |
-| Fase 6  | —       | —   | aguardando   | —                                                                       |
-| Fase 7  | —       | —   | aguardando   | —                                                                       |
-| Fase 8  | —       | —   | aguardando   | Requer Fase 5                                                           |
-| Fase 9+ | —       | —   | aguardando   | Backlog                                                                 |
-| IA      | —       | —   | sem prazo    | —                                                                       |
+| Fase 1  | —       | —   | aguardando   | —                                                                         |
+| Fase 2  | —       | —   | aguardando   | —                                                                         |
+| Fase 3a | —       | —   | aguardando   | —                                                                         |
+| Fase 3b | —       | —   | aguardando   | —                                                                         |
+| Fase 4  | —       | —   | aguardando   | —                                                                         |
+| Fase 5  | —       | —   | aguardando   | Pré-req Fase 8                                                            |
+| Fase 6  | —       | —   | aguardando   | —                                                                         |
+| Fase 7  | —       | —   | aguardando   | —                                                                         |
+| Fase 8  | —       | —   | aguardando   | Requer Fase 5                                                             |
+| Fase 9+ | —       | —   | aguardando   | Backlog                                                                   |
+| IA      | —       | —   | sem prazo    | —                                                                         |
