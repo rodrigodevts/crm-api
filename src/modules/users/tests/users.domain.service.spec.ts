@@ -90,3 +90,43 @@ describe('UsersDomainService.assertEmailNotInUse', () => {
     });
   });
 });
+
+describe('UsersDomainService.assertDepartmentsBelongToTenant', () => {
+  let service: UsersDomainService;
+  let tx: { department: { count: ReturnType<typeof vi.fn> } };
+  const COMPANY = '00000000-0000-7000-8000-00000000aaaa';
+
+  beforeEach(() => {
+    tx = { department: { count: vi.fn() } };
+    service = new UsersDomainService({} as unknown as PrismaService);
+  });
+
+  it('returns immediately without DB call when deptIds is empty', async () => {
+    await expect(
+      service.assertDepartmentsBelongToTenant([], COMPANY, tx as never),
+    ).resolves.toBeUndefined();
+    expect(tx.department.count).not.toHaveBeenCalled();
+  });
+
+  it('passes when count matches deptIds.length', async () => {
+    tx.department.count.mockResolvedValue(2);
+    const ids = ['00000000-0000-7000-8000-00000000d001', '00000000-0000-7000-8000-00000000d002'];
+    await expect(
+      service.assertDepartmentsBelongToTenant(ids, COMPANY, tx as never),
+    ).resolves.toBeUndefined();
+    expect(tx.department.count).toHaveBeenCalledWith({
+      where: { id: { in: ids }, companyId: COMPANY, deletedAt: null },
+    });
+  });
+
+  it('throws BadRequestException when count is less than deptIds.length', async () => {
+    tx.department.count.mockResolvedValue(1);
+    const ids = ['00000000-0000-7000-8000-00000000d001', '00000000-0000-7000-8000-00000000d002'];
+    await expect(
+      service.assertDepartmentsBelongToTenant(ids, COMPANY, tx as never),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: 'Departamento(s) não encontrado(s) no tenant',
+    });
+  });
+});
