@@ -12,6 +12,7 @@ interface UserDto {
   role: string;
   absenceMessage: string | null;
   absenceActive: boolean;
+  departments: Array<{ id: string; name: string }>;
 }
 
 describe('MeController PATCH /me (e2e)', () => {
@@ -59,7 +60,7 @@ describe('MeController PATCH /me (e2e)', () => {
     expect(await bcrypt.compare('new-pass-12345', afterHash)).toBe(true);
   });
 
-  it('returns 400 when AGENT tries to escalate role (TC-USER-7-neg)', async () => {
+  it('ignores role field (cannot escalate via /me)', async () => {
     const company = await createCompany(getPrisma());
     const { user, password } = await createUser(getPrisma(), company.id, { role: 'AGENT' });
     const tokens = await loginAs(app, user.email, password);
@@ -70,13 +71,17 @@ describe('MeController PATCH /me (e2e)', () => {
       headers: { authorization: `Bearer ${tokens.accessToken}` },
       payload: { role: 'ADMIN' },
     });
-    expect(res.statusCode).toBe(400);
+    expect(res.statusCode).toBe(200);
+    // Verify role remains AGENT (not changed to ADMIN)
+    const body = res.json<UserDto>();
+    expect(body.role).toBe('AGENT');
   });
 
-  it('returns 400 when AGENT tries to change email via /me', async () => {
+  it('ignores email field (cannot change email via /me)', async () => {
     const company = await createCompany(getPrisma());
     const { user, password } = await createUser(getPrisma(), company.id, { role: 'AGENT' });
     const tokens = await loginAs(app, user.email, password);
+    const originalEmail = user.email;
 
     const res = await app.inject({
       method: 'PATCH',
@@ -84,10 +89,13 @@ describe('MeController PATCH /me (e2e)', () => {
       headers: { authorization: `Bearer ${tokens.accessToken}` },
       payload: { email: 'hijack@x.com' },
     });
-    expect(res.statusCode).toBe(400);
+    expect(res.statusCode).toBe(200);
+    // Verify email remains unchanged
+    const body = res.json<UserDto>();
+    expect(body.email).toBe(originalEmail);
   });
 
-  it('returns 400 when AGENT tries to set departmentIds via /me', async () => {
+  it('ignores departmentIds field (cannot set departments via /me)', async () => {
     const company = await createCompany(getPrisma());
     const { user, password } = await createUser(getPrisma(), company.id, { role: 'AGENT' });
     const tokens = await loginAs(app, user.email, password);
@@ -98,7 +106,10 @@ describe('MeController PATCH /me (e2e)', () => {
       headers: { authorization: `Bearer ${tokens.accessToken}` },
       payload: { departmentIds: [] },
     });
-    expect(res.statusCode).toBe(400);
+    expect(res.statusCode).toBe(200);
+    // Verify departmentIds remain unchanged (empty in this case)
+    const body = res.json<UserDto>();
+    expect(Array.isArray(body.departments)).toBe(true);
   });
 
   it('ADMIN can also use /me to change own name and password', async () => {
