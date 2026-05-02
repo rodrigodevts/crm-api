@@ -368,3 +368,123 @@ describe('UsersController GET /users/:id (e2e)', () => {
     expect(res.statusCode).toBe(404);
   });
 });
+
+describe('UsersController PATCH /users/:id (e2e)', () => {
+  let app: NestFastifyApplication;
+
+  beforeAll(async () => {
+    app = await bootstrapTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+  });
+
+  it('admin updates name and password of another user (verifies bcrypt change)', async () => {
+    const { company, tokens } = await setupAdmin(app);
+    const { user: target } = await createUser(getPrisma(), company.id, {
+      role: 'AGENT',
+      email: 'before@x.com',
+    });
+    const beforeHash = (await getPrisma().user.findUnique({ where: { id: target.id } }))!
+      .passwordHash;
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/users/${target.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      payload: { name: 'Renamed', password: 'new-pass-99999' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json<UserDto>().name).toBe('Renamed');
+
+    const afterHash = (await getPrisma().user.findUnique({ where: { id: target.id } }))!
+      .passwordHash;
+    expect(afterHash).not.toBe(beforeHash);
+    expect(await bcrypt.compare('new-pass-99999', afterHash)).toBe(true);
+  });
+
+  it('returns 409 when demoting the last ADMIN (TC-USER-2b)', async () => {
+    const { admin, tokens } = await setupAdmin(app);
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/users/${admin.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      payload: { role: 'AGENT' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json<ErrorBody>().message).toBe('Não é possível remover o último ADMIN do tenant');
+  });
+
+  it('allows demoting an ADMIN when another ADMIN exists', async () => {
+    const { company, tokens } = await setupAdmin(app);
+    const { user: secondAdmin } = await createUser(getPrisma(), company.id, {
+      role: 'ADMIN',
+      email: 'admin2@x.com',
+    });
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/users/${secondAdmin.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      payload: { role: 'AGENT' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json<UserDto>().role).toBe('AGENT');
+  });
+
+  it('returns 403 when AGENT tries to PATCH another user (TC-USER-6)', async () => {
+    const company = await createCompany(getPrisma());
+    const { user: agent, password } = await createUser(getPrisma(), company.id, { role: 'AGENT' });
+    const { user: other } = await createUser(getPrisma(), company.id, {
+      role: 'AGENT',
+      email: 'other@x.com',
+    });
+    const tokens = await loginAs(app, agent.email, password);
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/users/${other.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      payload: { name: 'Hijack' },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('returns 409 when changing email to one already in use', async () => {
+    const { company, tokens } = await setupAdmin(app);
+    const { user: target } = await createUser(getPrisma(), company.id, {
+      role: 'AGENT',
+      email: 'me@x.com',
+    });
+    await createUser(getPrisma(), company.id, { email: 'taken@x.com' });
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/users/${target.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      payload: { email: 'taken@x.com' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json<ErrorBody>().message).toBe('Email já cadastrado');
+  });
+
+  it('returns 404 when target is in another tenant (multi-tenant isolation)', async () => {
+    const { tokens } = await setupAdmin(app);
+    const otherCompany = await createCompany(getPrisma());
+    const { user: cross } = await createUser(getPrisma(), otherCompany.id);
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/users/${cross.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      payload: { name: 'XX' },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+});

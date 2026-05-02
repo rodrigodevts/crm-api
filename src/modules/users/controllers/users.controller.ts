@@ -59,10 +59,14 @@ export class UsersController {
   }
 
   @Patch(':id')
+  @Roles('ADMIN')
   @ZodSerializerDto(UserResponseDto)
-  update(@Param('id') _id: string, @Body() _input: UpdateUserDto): Promise<UserResponseDto> {
-    // TODO: implementar
-    throw new Error('Not implemented');
+  async update(
+    @Param('id') id: string,
+    @Body() body: UpdateUserDto,
+    @CurrentCompany() companyId: string,
+  ): Promise<UserResponseDto> {
+    return this.users.updateById(id, companyId, body);
   }
 
   @Delete(':id')
