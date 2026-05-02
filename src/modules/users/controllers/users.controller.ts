@@ -75,4 +75,11 @@ export class UsersController {
   async delete(@Param('id') id: string, @CurrentCompany() companyId: string): Promise<void> {
     await this.users.softDelete(id, companyId);
   }
+
+  @Post(':id/force-logout')
+  @Roles('ADMIN')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async forceLogout(@Param('id') id: string, @CurrentCompany() companyId: string): Promise<void> {
+    await this.users.forceLogout(id, companyId);
+  }
 }

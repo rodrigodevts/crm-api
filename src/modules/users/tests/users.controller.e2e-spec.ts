@@ -606,3 +606,120 @@ describe('UsersController DELETE /users/:id (e2e)', () => {
     expect(res.json<ErrorBody>().message).toBe('Email já cadastrado');
   });
 });
+
+describe('UsersController POST /users/:id/force-logout (e2e)', () => {
+  let app: NestFastifyApplication;
+
+  beforeAll(async () => {
+    app = await bootstrapTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+  });
+
+  it("revokes target's refresh tokens, subsequent /auth/refresh returns 401 (TC-USER-3)", async () => {
+    const { company, tokens: adminTokens } = await setupAdmin(app);
+    const { user: target, password: targetPass } = await createUser(getPrisma(), company.id, {
+      role: 'AGENT',
+      email: 'target@x.com',
+    });
+    const targetTokens = await loginAs(app, target.email, targetPass);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/v1/users/${target.id}/force-logout`,
+      headers: { authorization: `Bearer ${adminTokens.accessToken}` },
+    });
+    expect(res.statusCode).toBe(204);
+
+    const refreshRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: { refreshToken: targetTokens.refreshToken },
+    });
+    expect(refreshRes.statusCode).toBe(401);
+  });
+
+  it('allows admin to force-logout self', async () => {
+    const { admin, tokens } = await setupAdmin(app);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/v1/users/${admin.id}/force-logout`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    expect(res.statusCode).toBe(204);
+
+    const refreshRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      payload: { refreshToken: tokens.refreshToken },
+    });
+    expect(refreshRes.statusCode).toBe(401);
+  });
+
+  it('returns 403 when target is SUPER_ADMIN of the same tenant', async () => {
+    const company = await createCompany(getPrisma());
+    const { user: superAdmin } = await createUser(getPrisma(), company.id, {
+      role: 'SUPER_ADMIN',
+      email: 'super@x.com',
+    });
+    const { user: admin, password } = await createUser(getPrisma(), company.id, { role: 'ADMIN' });
+    const tokens = await loginAs(app, admin.email, password);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/v1/users/${superAdmin.id}/force-logout`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('returns 404 when target is soft-deleted', async () => {
+    const { company, tokens } = await setupAdmin(app);
+    const { user: target } = await createUser(getPrisma(), company.id);
+    await getPrisma().user.update({ where: { id: target.id }, data: { deletedAt: new Date() } });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/v1/users/${target.id}/force-logout`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('returns 404 when target is in another tenant', async () => {
+    const { tokens } = await setupAdmin(app);
+    const otherCompany = await createCompany(getPrisma());
+    const { user: cross } = await createUser(getPrisma(), otherCompany.id);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/v1/users/${cross.id}/force-logout`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('returns 403 when caller is AGENT', async () => {
+    const company = await createCompany(getPrisma());
+    const { user: agent, password } = await createUser(getPrisma(), company.id, { role: 'AGENT' });
+    const { user: target } = await createUser(getPrisma(), company.id, {
+      role: 'AGENT',
+      email: 'other@x.com',
+    });
+    const tokens = await loginAs(app, agent.email, password);
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/v1/users/${target.id}/force-logout`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+});
