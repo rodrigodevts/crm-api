@@ -166,7 +166,7 @@ Fase 9+ (Backlog, IA quando priorizada)
 ### CRUD básico (estrutura 3 camadas em todos)
 
 - [ ] Companies (apenas SUPER_ADMIN)
-- [ ] Users (com force-logout)
+- [x] Users (com force-logout)
 - [ ] Departments (com working hours)
 - [ ] Tags (com escopo)
 - [ ] CloseReasons (com reorder)
