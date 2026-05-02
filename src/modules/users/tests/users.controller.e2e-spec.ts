@@ -488,3 +488,121 @@ describe('UsersController PATCH /users/:id (e2e)', () => {
     expect(res.statusCode).toBe(404);
   });
 });
+
+describe('UsersController DELETE /users/:id (e2e)', () => {
+  let app: NestFastifyApplication;
+
+  beforeAll(async () => {
+    app = await bootstrapTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+  });
+
+  it('soft-deletes a non-last ADMIN target', async () => {
+    const { company, tokens } = await setupAdmin(app);
+    const { user: target } = await createUser(getPrisma(), company.id, { role: 'AGENT' });
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/users/${target.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    expect(res.statusCode).toBe(204);
+
+    const persisted = await getPrisma().user.findUnique({ where: { id: target.id } });
+    expect(persisted?.deletedAt).not.toBeNull();
+  });
+
+  it('subsequent GET returns 404 after DELETE', async () => {
+    const { company, tokens } = await setupAdmin(app);
+    const { user: target } = await createUser(getPrisma(), company.id, { role: 'AGENT' });
+
+    await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/users/${target.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/users/${target.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('returns 409 when deleting the last ADMIN (TC-USER-2a)', async () => {
+    const { admin, tokens } = await setupAdmin(app);
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/users/${admin.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json<ErrorBody>().message).toBe('Não é possível remover o último ADMIN do tenant');
+  });
+
+  it('returns 403 when caller is AGENT', async () => {
+    const company = await createCompany(getPrisma());
+    const { user: agent, password } = await createUser(getPrisma(), company.id, { role: 'AGENT' });
+    const { user: target } = await createUser(getPrisma(), company.id, {
+      role: 'AGENT',
+      email: 'other@x.com',
+    });
+    const tokens = await loginAs(app, agent.email, password);
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/users/${target.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('returns 404 when target is in another tenant', async () => {
+    const { tokens } = await setupAdmin(app);
+    const otherCompany = await createCompany(getPrisma());
+    const { user: cross } = await createUser(getPrisma(), otherCompany.id);
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/users/${cross.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('blocks recreating with the same email after soft-delete (decision §1.1)', async () => {
+    const { company, tokens } = await setupAdmin(app);
+    const { user: target } = await createUser(getPrisma(), company.id, {
+      role: 'AGENT',
+      email: 'will-be-deleted@x.com',
+    });
+    await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/users/${target.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/users',
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      payload: {
+        name: 'New',
+        email: 'will-be-deleted@x.com',
+        password: 'valid-pass-1234',
+        role: 'AGENT',
+        departmentIds: [],
+      },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json<ErrorBody>().message).toBe('Email já cadastrado');
+  });
+});

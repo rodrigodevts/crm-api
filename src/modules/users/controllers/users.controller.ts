@@ -70,8 +70,9 @@ export class UsersController {
   }
 
   @Delete(':id')
-  remove(@Param('id') _id: string): Promise<void> {
-    // TODO: implementar
-    throw new Error('Not implemented');
+  @Roles('ADMIN')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async delete(@Param('id') id: string, @CurrentCompany() companyId: string): Promise<void> {
+    await this.users.softDelete(id, companyId);
   }
 }
