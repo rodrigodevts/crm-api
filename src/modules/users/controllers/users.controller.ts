@@ -8,14 +8,20 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ZodSerializerDto } from 'nestjs-zod';
 import { CurrentCompany } from '../../../common/decorators/current-company.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { CreateUserDto } from '../schemas/create-user.schema';
+import { ListUsersQueryDto } from '../schemas/list-users.schema';
 import { UpdateUserDto } from '../schemas/update-user.schema';
-import { UserResponseDto } from '../schemas/user-response.schema';
+import {
+  UserListResponseDto,
+  UserListResponseSchema,
+  UserResponseDto,
+} from '../schemas/user-response.schema';
 import { UsersApplicationService } from '../services/users.application.service';
 
 @ApiTags('users')
@@ -35,10 +41,12 @@ export class UsersController {
   }
 
   @Get()
-  @ZodSerializerDto(UserResponseDto)
-  list(): Promise<UserResponseDto[]> {
-    // TODO: extrair @CurrentCompany, paginar (cursor-based per api-conventions.md), chamar applicationService.list
-    throw new Error('Not implemented');
+  @ZodSerializerDto(UserListResponseSchema)
+  async list(
+    @Query() query: ListUsersQueryDto,
+    @CurrentCompany() companyId: string,
+  ): Promise<UserListResponseDto> {
+    return this.users.list(companyId, query);
   }
 
   @Get(':id')

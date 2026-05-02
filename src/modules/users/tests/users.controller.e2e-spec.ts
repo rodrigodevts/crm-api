@@ -202,3 +202,106 @@ describe('UsersController POST /users (e2e)', () => {
     expect(res.statusCode).toBe(401);
   });
 });
+
+describe('UsersController GET /users (e2e)', () => {
+  let app: NestFastifyApplication;
+
+  beforeAll(async () => {
+    app = await bootstrapTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+  });
+
+  it('lists users of the tenant filtered by role=AGENT', async () => {
+    const { company, tokens } = await setupAdmin(app);
+    await createUser(getPrisma(), company.id, { role: 'AGENT', email: 'a1@x.com' });
+    await createUser(getPrisma(), company.id, { role: 'AGENT', email: 'a2@x.com' });
+    await createUser(getPrisma(), company.id, { role: 'SUPERVISOR', email: 's1@x.com' });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/users?role=AGENT&active=true',
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json<_ListResponse>();
+    expect(body.items.length).toBe(2);
+    body.items.forEach((u) => expect(u.role).toBe('AGENT'));
+  });
+
+  it('does not list users from other tenants (multi-tenant isolation)', async () => {
+    const { tokens } = await setupAdmin(app);
+    const otherCompany = await createCompany(getPrisma());
+    await createUser(getPrisma(), otherCompany.id, { email: 'cross@x.com' });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/users',
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const emails = res.json<_ListResponse>().items.map((u) => u.email);
+    expect(emails).not.toContain('cross@x.com');
+  });
+
+  it('does not list soft-deleted users by default', async () => {
+    const { company, tokens } = await setupAdmin(app);
+    const { user } = await createUser(getPrisma(), company.id, { email: 'deleted@x.com' });
+    await getPrisma().user.update({ where: { id: user.id }, data: { deletedAt: new Date() } });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/users',
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    const emails = res.json<_ListResponse>().items.map((u) => u.email);
+    expect(emails).not.toContain('deleted@x.com');
+  });
+
+  it('supports cursor pagination (returns nextCursor when hasMore)', async () => {
+    const { company, tokens } = await setupAdmin(app);
+    for (let i = 0; i < 25; i++) {
+      await createUser(getPrisma(), company.id, { email: `bulk-${i}@x.com` });
+    }
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/users?limit=10',
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    const body = res.json<_ListResponse>();
+    expect(body.items.length).toBe(10);
+    expect(body.pagination.hasMore).toBe(true);
+    expect(body.pagination.nextCursor).toBeTruthy();
+
+    const res2 = await app.inject({
+      method: 'GET',
+      url: `/api/v1/users?limit=10&cursor=${encodeURIComponent(body.pagination.nextCursor!)}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    const body2 = res2.json<_ListResponse>();
+    expect(body2.items.length).toBe(10);
+    const ids1 = new Set(body.items.map((u) => u.id));
+    body2.items.forEach((u) => expect(ids1.has(u.id)).toBe(false));
+  });
+
+  it('AGENT can list users (read-only access)', async () => {
+    const company = await createCompany(getPrisma());
+    const { user: agent, password } = await createUser(getPrisma(), company.id, { role: 'AGENT' });
+    const tokens = await loginAs(app, agent.email, password);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/users',
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    expect(res.statusCode).toBe(200);
+  });
+});
