@@ -1,11 +1,13 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { Prisma, type User } from '@prisma/client';
+import { ZodError } from 'zod';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../../database/prisma.service';
 import { AuthDomainService } from '../../auth/services/auth.domain.service';
 import type { CreateUserDto } from '../schemas/create-user.schema';
 import type { ListUsersQueryDto } from '../schemas/list-users.schema';
 import type { UpdateMeDto } from '../schemas/update-me.schema';
+import { UpdateMeSchema } from '../schemas/update-me.schema';
 import type { UpdateUserDto } from '../schemas/update-user.schema';
 import type { UserListResponseDto, UserResponseDto } from '../schemas/user-response.schema';
 import {
@@ -93,6 +95,23 @@ export class UsersApplicationService {
   }
 
   async updateMe(currentUser: User, input: UpdateMeDto): Promise<UserResponseDto> {
+    // Validate strictly to reject unknown keys (e.g., attempts to escalate role, change email, set departmentIds)
+    try {
+      UpdateMeSchema.parse(input);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new BadRequestException({
+          message: 'Validação falhou',
+          errors: error.issues.map((issue) => ({
+            field: issue.path.join('.') || '<root>',
+            message: issue.message,
+            code: issue.code,
+          })),
+        });
+      }
+      throw error;
+    }
+
     const patch: UpdateUserPatch = {};
     if (input.name !== undefined) patch.name = input.name;
     if (input.password) patch.passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
