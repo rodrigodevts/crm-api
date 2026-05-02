@@ -1,5 +1,6 @@
 import * as bcrypt from 'bcrypt';
-import type { Company, Plan, PrismaClient, User, UserRole } from '@prisma/client';
+import type { Company, Department, Plan, PrismaClient, User, UserRole } from '@prisma/client';
+import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 
 let counter = 0;
 const nextId = (): string => `${Date.now()}-${++counter}`;
@@ -44,6 +45,37 @@ export async function createUser(
     },
   });
   return { user, password };
+}
+
+export async function createDepartment(
+  prisma: PrismaClient,
+  companyId: string,
+  overrides: Partial<{ name: string; active: boolean }> = {},
+): Promise<Department> {
+  return prisma.department.create({
+    data: {
+      companyId,
+      name: overrides.name ?? `Dept ${nextId()}`,
+      active: overrides.active ?? true,
+    },
+  });
+}
+
+export async function loginAs(
+  app: NestFastifyApplication,
+  email: string,
+  password: string,
+): Promise<{ accessToken: string; refreshToken: string }> {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/v1/auth/login',
+    payload: { email, password },
+  });
+  if (res.statusCode !== 200) {
+    throw new Error(`loginAs failed: ${res.statusCode} ${res.body}`);
+  }
+  const body = res.json<{ accessToken: string; refreshToken: string }>();
+  return { accessToken: body.accessToken, refreshToken: body.refreshToken };
 }
 
 export async function truncateAll(prisma: PrismaClient): Promise<void> {
