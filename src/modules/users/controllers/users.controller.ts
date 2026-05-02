@@ -51,9 +51,11 @@ export class UsersController {
 
   @Get(':id')
   @ZodSerializerDto(UserResponseDto)
-  getById(@Param('id') _id: string): Promise<UserResponseDto> {
-    // TODO: implementar
-    throw new Error('Not implemented');
+  async findById(
+    @Param('id') id: string,
+    @CurrentCompany() companyId: string,
+  ): Promise<UserResponseDto> {
+    return this.users.findById(id, companyId);
   }
 
   @Patch(':id')

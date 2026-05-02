@@ -305,3 +305,66 @@ describe('UsersController GET /users (e2e)', () => {
     expect(res.statusCode).toBe(200);
   });
 });
+
+describe('UsersController GET /users/:id (e2e)', () => {
+  let app: NestFastifyApplication;
+
+  beforeAll(async () => {
+    app = await bootstrapTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+  });
+
+  it('returns user with departments populated', async () => {
+    const { company, tokens } = await setupAdmin(app);
+    const dept = await createDepartment(getPrisma(), company.id, { name: 'Vendas' });
+    const { user: agent } = await createUser(getPrisma(), company.id, { role: 'AGENT' });
+    await getPrisma().userDepartment.create({
+      data: { userId: agent.id, departmentId: dept.id },
+    });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/users/${agent.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json<UserDto>();
+    expect(body.id).toBe(agent.id);
+    expect(body.departments).toEqual([{ id: dept.id, name: 'Vendas' }]);
+  });
+
+  it('returns 404 when user belongs to another tenant', async () => {
+    const { tokens } = await setupAdmin(app);
+    const otherCompany = await createCompany(getPrisma());
+    const { user: cross } = await createUser(getPrisma(), otherCompany.id);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/users/${cross.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json<ErrorBody>().message).toBe('Usuário não encontrado');
+  });
+
+  it('returns 404 when user is soft-deleted', async () => {
+    const { company, tokens } = await setupAdmin(app);
+    const { user } = await createUser(getPrisma(), company.id);
+    await getPrisma().user.update({ where: { id: user.id }, data: { deletedAt: new Date() } });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/users/${user.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+});
