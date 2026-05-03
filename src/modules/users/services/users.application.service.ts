@@ -9,6 +9,7 @@ import type { ListUsersQueryDto } from '../schemas/list-users.schema';
 import type { UpdateMeDto } from '../schemas/update-me.schema';
 import { UpdateMeSchema } from '../schemas/update-me.schema';
 import type { UpdateUserDto } from '../schemas/update-user.schema';
+import { UpdateUserSchema } from '../schemas/update-user.schema';
 import type { UserListResponseDto, UserResponseDto } from '../schemas/user-response.schema';
 import {
   UsersDomainService,
@@ -83,6 +84,7 @@ export class UsersApplicationService {
   }
 
   async updateById(id: string, companyId: string, input: UpdateUserDto): Promise<UserResponseDto> {
+    this.assertStrict(UpdateUserSchema, input);
     const patch = await this.toPatch(input);
     try {
       const user = await this.prisma.$transaction((tx) =>
@@ -95,22 +97,7 @@ export class UsersApplicationService {
   }
 
   async updateMe(currentUser: User, input: UpdateMeDto): Promise<UserResponseDto> {
-    // Validate strictly to reject unknown keys (e.g., attempts to escalate role, change email, set departmentIds)
-    try {
-      UpdateMeSchema.parse(input);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        throw new BadRequestException({
-          message: 'Validação falhou',
-          errors: error.issues.map((issue) => ({
-            field: issue.path.join('.') || '<root>',
-            message: issue.message,
-            code: issue.code,
-          })),
-        });
-      }
-      throw error;
-    }
+    this.assertStrict(UpdateMeSchema, input);
 
     const patch: UpdateUserPatch = {};
     if (input.name !== undefined) patch.name = input.name;
@@ -163,6 +150,24 @@ export class UsersApplicationService {
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),
     };
+  }
+
+  private assertStrict(schema: { parse: (value: unknown) => unknown }, input: unknown): void {
+    try {
+      schema.parse(input);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new BadRequestException({
+          message: 'Validação falhou',
+          errors: error.issues.map((issue) => ({
+            field: issue.path.join('.') || '<root>',
+            message: issue.message,
+            code: issue.code,
+          })),
+        });
+      }
+      throw error;
+    }
   }
 
   private mapEmailConflict(err: unknown): unknown {

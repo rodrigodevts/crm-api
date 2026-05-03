@@ -474,6 +474,29 @@ describe('UsersController PATCH /users/:id (e2e)', () => {
     expect(res.json<ErrorBody>().message).toBe('Email já cadastrado');
   });
 
+  it('returns 400 when body contains unknown keys (strict schema)', async () => {
+    const { company, tokens } = await setupAdmin(app);
+    const { user: target } = await createUser(getPrisma(), company.id, {
+      role: 'AGENT',
+      email: 'strict@x.com',
+    });
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/users/${target.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      payload: { name: 'New name', isAdmin: true, companyId: 'spoof-tenant' },
+    });
+    expect(res.statusCode).toBe(400);
+    const body = res.json<ErrorBody>();
+    expect(body.message).toBe('Validação falhou');
+    const codes = body.errors?.map((e) => e.code) ?? [];
+    expect(codes).toContain('unrecognized_keys');
+
+    const fresh = await getPrisma().user.findUnique({ where: { id: target.id } });
+    expect(fresh?.name).not.toBe('New name');
+  });
+
   it('returns 404 when target is in another tenant (multi-tenant isolation)', async () => {
     const { tokens } = await setupAdmin(app);
     const otherCompany = await createCompany(getPrisma());
