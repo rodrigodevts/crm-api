@@ -222,7 +222,7 @@ describe('TicketsController (e2e) - multi-tenant isolation', () => {
     const response = await request(app.getHttpServer())
       .get(`/tickets/${ticketOfA.id}`)
       .set('Authorization', `Bearer ${tokenB}`)
-      .expect(404);  // ou 403, dependendo do design
+      .expect(404); // ou 403, dependendo do design
   });
 
   it('user of B cannot update ticket of A', async () => {
@@ -240,9 +240,7 @@ describe('TicketsController (e2e) - multi-tenant isolation', () => {
       .get(`/tickets`)
       .set('Authorization', `Bearer ${tokenB}`);
 
-    expect(response.body.tickets).not.toContainEqual(
-      expect.objectContaining({ id: ticketOfA.id })
-    );
+    expect(response.body.tickets).not.toContainEqual(expect.objectContaining({ id: ticketOfA.id }));
   });
 });
 ```
@@ -271,16 +269,16 @@ Em `prisma.$transaction`, **cada operação dentro** precisa do filtro:
 ```typescript
 // ❌ ERRADO — segundo update vaza
 await this.prisma.$transaction(async (tx) => {
-  await tx.ticket.update({ where: { id, companyId }, data: { status: 'OPEN' }});
-  await tx.message.update({ where: { id: messageId }, data: { read: true }});
+  await tx.ticket.update({ where: { id, companyId }, data: { status: 'OPEN' } });
+  await tx.message.update({ where: { id: messageId }, data: { read: true } });
   // ↑ sem companyId, vaza
 });
 
 // ✅ CORRETO
 await this.prisma.$transaction(async (tx) => {
-  await tx.ticket.update({ where: { id, companyId }, data: { status: 'OPEN' }});
+  await tx.ticket.update({ where: { id, companyId }, data: { status: 'OPEN' } });
   await tx.message.updateMany({
-    where: { id: messageId, companyId },  // ← adicionar
+    where: { id: messageId, companyId }, // ← adicionar
     data: { read: true },
   });
 });
@@ -291,7 +289,7 @@ await this.prisma.$transaction(async (tx) => {
 ```typescript
 // ❌ ERRADO se a chave única não tem companyId
 const ticket = await this.prisma.ticket.findUnique({
-  where: { protocol: '#12345' },  // protocol é único POR TENANT, não global
+  where: { protocol: '#12345' }, // protocol é único POR TENANT, não global
 });
 // Pode retornar ticket de outro tenant!
 
@@ -338,6 +336,27 @@ Quando reviewar PR (você mesmo ou outro dev), procurar especificamente por:
 4. Cada nova entrada de fila BullMQ — verificar se payload inclui `companyId`
 5. Cada nova sala Socket.IO — verificar prefixo `company:{companyId}:`
 6. Cada teste e2e novo — confirmar que tem caso de isolamento
+
+---
+
+## Caso especial — entidade que É o tenant (Company)
+
+Operações sobre `Company` (tenant root) **não filtram por `@CurrentCompany()`**
+da forma tradicional, porque o tenant **é** o objeto da operação, não o contexto.
+Ver `docs/superpowers/specs/2026-05-02-sprint-0-5-companies-crud-design.md` §1.7
+e §2.
+
+Invariantes mantidas:
+
+- ADMIN+ só acessa a própria Company (`:id === currentUser.companyId` ou
+  `/companies/me`); cross-tenant retorna **404** (não 403 — não vaza
+  existência).
+- Listagem (`GET /companies`) e criação (`POST /companies`) são SUPER_ADMIN-only.
+- Demais entidades de tenant (User, Department, Tag, etc.) continuam seguindo
+  o padrão tradicional do checklist (toda query filtra `companyId`).
+
+Esta exceção se aplica **somente** ao módulo `companies`. Se outra entidade
+do schema vier a representar o tenant root no futuro, atualizar esta seção.
 
 ---
 
