@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { Prisma, User } from '@prisma/client';
+import { decodeCursor, encodeCursor } from '../../../common/cursor';
 import { PrismaService } from '../../../database/prisma.service';
 
 export type UserWithDepartments = User & {
@@ -123,29 +124,12 @@ export class UsersDomainService {
     return user;
   }
 
-  encodeCursor(createdAt: Date, id: string): string {
-    return Buffer.from(JSON.stringify({ createdAt: createdAt.toISOString(), id }), 'utf8').toString(
-      'base64url',
-    );
-  }
-
-  decodeCursor(cursor: string | undefined): { createdAt: Date; id: string } | null {
-    if (cursor === undefined) return null;
-    try {
-      const decoded = Buffer.from(cursor, 'base64url').toString('utf8');
-      const parsed = JSON.parse(decoded) as { createdAt: string; id: string };
-      return { createdAt: new Date(parsed.createdAt), id: parsed.id };
-    } catch {
-      throw new BadRequestException('Cursor inválido');
-    }
-  }
-
   async list(
     companyId: string,
     filters: ListUsersFilters,
     pagination: ListUsersPagination,
   ): Promise<ListUsersResult> {
-    const decoded = this.decodeCursor(pagination.cursor);
+    const decoded = decodeCursor(pagination.cursor);
     const conditions: Prisma.UserWhereInput[] = [];
     if (filters.search) {
       conditions.push({
@@ -188,7 +172,7 @@ export class UsersDomainService {
     const hasMore = items.length > pagination.limit;
     const trimmed = hasMore ? items.slice(0, pagination.limit) : items;
     const last = trimmed[trimmed.length - 1];
-    const nextCursor = hasMore && last ? this.encodeCursor(last.createdAt, last.id) : null;
+    const nextCursor = hasMore && last ? encodeCursor(last.createdAt, last.id) : null;
 
     return { items: trimmed, nextCursor, hasMore };
   }

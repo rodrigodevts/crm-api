@@ -78,6 +78,19 @@ export async function loginAs(
   return { accessToken: body.accessToken, refreshToken: body.refreshToken };
 }
 
+export async function createSuperAdmin(
+  prisma: PrismaClient,
+  companyId: string,
+  options: { email?: string; password?: string; name?: string } = {},
+): Promise<{ user: User; password: string }> {
+  return createUser(prisma, companyId, {
+    role: 'SUPER_ADMIN',
+    email: options.email ?? `super-${nextId()}@test.local`,
+    password: options.password ?? 'valid-password-1234',
+    name: options.name ?? `SuperAdmin ${nextId()}`,
+  });
+}
+
 export async function truncateAll(prisma: PrismaClient): Promise<void> {
   await prisma.$executeRawUnsafe(
     `TRUNCATE TABLE "AuditLog", "WebhookDelivery", "WebhookSubscription", "BotCredential", "MessageTemplate", "IntegrationLink", "BusinessHoliday", "CustomFieldDefinition", "ContactTag", "TicketTag", "Contact", "Ticket", "ChatFlow", "ChannelConnection", "LeadStatus", "SalesFunnel", "CloseReasonDepartment", "CloseReason", "QuickReply", "Tag", "UserDepartment", "Department", "RefreshToken", "User", "CompanySettings", "Company", "Plan" RESTART IDENTITY CASCADE`,

@@ -166,31 +166,6 @@ describe('UsersDomainService.assertNotLastAdmin', () => {
   });
 });
 
-describe('UsersDomainService.list cursor encoding', () => {
-  let service: UsersDomainService;
-
-  beforeEach(() => {
-    service = new UsersDomainService({} as unknown as PrismaService);
-  });
-
-  it('encodes and decodes a cursor symmetrically', () => {
-    const date = new Date('2026-05-01T10:00:00.000Z');
-    const id = '00000000-0000-7000-8000-000000000001';
-    const cursor = service.encodeCursor(date, id);
-    expect(typeof cursor).toBe('string');
-    const decoded = service.decodeCursor(cursor);
-    expect(decoded).toEqual({ createdAt: date, id });
-  });
-
-  it('returns null when decoding undefined', () => {
-    expect(service.decodeCursor(undefined)).toBeNull();
-  });
-
-  it('throws BadRequestException when cursor is malformed', () => {
-    expect(() => service.decodeCursor('not-base64-json')).toThrow();
-  });
-});
-
 describe('UsersDomainService.create', () => {
   let service: UsersDomainService;
   let prisma: {
