@@ -4,7 +4,8 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import type { Company, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { Company } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { decodeCursor, encodeCursor } from '../../../common/cursor';
 
@@ -22,6 +23,15 @@ export interface ListCompaniesResult {
   items: Company[];
   nextCursor: string | null;
   hasMore: boolean;
+}
+
+export interface CreateCompanyInput {
+  name: string;
+  slug: string;
+  planId: string;
+  timezone: string;
+  defaultWorkingHours: unknown;
+  outOfHoursMessage: string | null;
 }
 
 @Injectable()
@@ -110,5 +120,27 @@ export class CompaniesDomainService {
     const nextCursor = hasMore && last ? encodeCursor(last.createdAt, last.id) : null;
 
     return { items: trimmed, nextCursor, hasMore };
+  }
+
+  async create(input: CreateCompanyInput, tx: Prisma.TransactionClient): Promise<Company> {
+    await this.assertSlugAvailable(input.slug, tx);
+    await this.assertPlanIsActive(input.planId, tx);
+
+    return tx.company.create({
+      data: {
+        name: input.name,
+        slug: input.slug,
+        planId: input.planId,
+        timezone: input.timezone,
+        defaultWorkingHours:
+          input.defaultWorkingHours === null
+            ? Prisma.DbNull
+            : (input.defaultWorkingHours as Prisma.InputJsonValue),
+        outOfHoursMessage: input.outOfHoursMessage,
+        settings: {
+          create: {},
+        },
+      },
+    });
   }
 }
