@@ -167,3 +167,101 @@ describe('CompaniesController GET /companies (e2e)', () => {
     expect(body.items.find((c) => c.slug === 'deleted-co')).toBeUndefined();
   });
 });
+
+describe('CompaniesController GET /companies/:id (e2e)', () => {
+  let app: NestFastifyApplication;
+
+  beforeAll(async () => {
+    app = await bootstrapTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+  });
+
+  it('SUPER_ADMIN reads any tenant', async () => {
+    const { tokens } = await setupSuperAdmin(app);
+    const target = await createCompany(getPrisma(), { slug: 'target-co' });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/companies/${target.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json<CompanyDto>().slug).toBe('target-co');
+  });
+
+  it('ADMIN reads its own tenant', async () => {
+    const company = await createCompany(getPrisma(), { slug: 'self-co' });
+    const { user, password } = await createUser(getPrisma(), company.id, {
+      role: 'ADMIN',
+      email: 'a@self.com',
+    });
+    const tokens = await loginAs(app, user.email, password);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/companies/${company.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('ADMIN of company A gets 404 (not 403) when reading company B', async () => {
+    const a = await createCompany(getPrisma(), { slug: 'aa-co' });
+    const b = await createCompany(getPrisma(), { slug: 'bb-co' });
+    const { user, password } = await createUser(getPrisma(), a.id, {
+      role: 'ADMIN',
+      email: 'a@aa.com',
+    });
+    const tokens = await loginAs(app, user.email, password);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/companies/${b.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('AGENT gets 403 (RolesGuard barra antes do app service)', async () => {
+    const company = await createCompany(getPrisma(), { slug: 'ag-co' });
+    const { user, password } = await createUser(getPrisma(), company.id, {
+      role: 'AGENT',
+    });
+    const tokens = await loginAs(app, user.email, password);
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/companies/${company.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('SUPER_ADMIN gets 404 when company is soft-deleted', async () => {
+    const { tokens } = await setupSuperAdmin(app);
+    const target = await createCompany(getPrisma(), { slug: 'soft-co' });
+    await getPrisma().company.update({
+      where: { id: target.id },
+      data: { deletedAt: new Date() },
+    });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/companies/${target.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+    });
+
+    expect(res.statusCode).toBe(404);
+  });
+});

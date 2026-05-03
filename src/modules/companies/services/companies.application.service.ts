@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, type Company, type User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { ZodError } from 'zod';
@@ -103,6 +108,15 @@ export class CompaniesApplicationService {
 
   async findMine(currentUser: User): Promise<CompanyResponseDto> {
     const company = await this.companiesDomain.findById(currentUser.companyId);
+    return this.toDto(company);
+  }
+
+  async findByIdAuthorized(id: string, currentUser: User): Promise<CompanyResponseDto> {
+    if (currentUser.role !== 'SUPER_ADMIN' && id !== currentUser.companyId) {
+      // Não vaza existência cross-tenant — mesmo se a Company exista, retorna 404
+      throw new NotFoundException('Empresa não encontrada');
+    }
+    const company = await this.companiesDomain.findById(id);
     return this.toDto(company);
   }
 
