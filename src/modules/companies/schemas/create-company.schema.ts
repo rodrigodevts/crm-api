@@ -1,3 +1,4 @@
+import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 import { WorkingHoursSchema } from './working-hours.schema';
 
@@ -37,4 +38,5 @@ export const CreateCompanySchema = z
   .strict()
   .describe('Cria empresa + CompanySettings (defaults) + 1º ADMIN do tenant em uma transação');
 
-export type CreateCompanyDto = z.infer<typeof CreateCompanySchema>;
+export type CreateCompanyInput = z.infer<typeof CreateCompanySchema>;
+export class CreateCompanyDto extends createZodDto(CreateCompanySchema) {}
