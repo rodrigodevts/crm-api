@@ -1,3 +1,4 @@
+import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
 export const ListCompaniesQuerySchema = z
@@ -9,4 +10,5 @@ export const ListCompaniesQuerySchema = z
   })
   .describe('Filtros para listagem de empresas (SUPER_ADMIN)');
 
-export type ListCompaniesQueryDto = z.infer<typeof ListCompaniesQuerySchema>;
+export type ListCompaniesQueryInput = z.infer<typeof ListCompaniesQuerySchema>;
+export class ListCompaniesQueryDto extends createZodDto(ListCompaniesQuerySchema) {}

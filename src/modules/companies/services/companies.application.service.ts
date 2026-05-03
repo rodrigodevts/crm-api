@@ -5,8 +5,12 @@ import { ZodError } from 'zod';
 import { PrismaService } from '../../../database/prisma.service';
 import { UsersDomainService } from '../../users/services/users.domain.service';
 import type { CompanyWithAdminResponseDto } from '../schemas/company-with-admin-response.schema';
-import type { CompanyResponseDto } from '../schemas/company-response.schema';
+import type {
+  CompanyListResponseDto,
+  CompanyResponseDto,
+} from '../schemas/company-response.schema';
 import type { CreateCompanyInput } from '../schemas/create-company.schema';
+import type { ListCompaniesQueryInput } from '../schemas/list-companies.schema';
 import { WorkingHoursSchema, type WorkingHoursDto } from '../schemas/working-hours.schema';
 import { CompaniesDomainService } from './companies.domain.service';
 
@@ -76,6 +80,25 @@ export class CompaniesApplicationService {
     } catch (err) {
       throw this.mapConflict(err);
     }
+  }
+
+  async list(query: ListCompaniesQueryInput): Promise<CompanyListResponseDto> {
+    const filters: { active?: boolean; search?: string } = {};
+    if (query.active !== undefined) filters.active = query.active;
+    if (query.search !== undefined) filters.search = query.search;
+
+    const pagination: { cursor?: string; limit: number } = { limit: query.limit };
+    if (query.cursor !== undefined) pagination.cursor = query.cursor;
+
+    const result = await this.companiesDomain.list(filters, pagination);
+
+    return {
+      items: result.items.map((c) => this.toDto(c)),
+      pagination: {
+        nextCursor: result.nextCursor,
+        hasMore: result.hasMore,
+      },
+    };
   }
 
   protected toDto(company: Company): CompanyResponseDto {
