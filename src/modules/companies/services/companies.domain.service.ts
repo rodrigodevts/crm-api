@@ -23,4 +23,15 @@ export class CompaniesDomainService {
       throw new UnprocessableEntityException('Plano não encontrado ou inativo');
     }
   }
+
+  async assertNoActiveUsers(companyId: string, tx: Prisma.TransactionClient): Promise<void> {
+    const count = await tx.user.count({
+      where: { companyId, deletedAt: null },
+    });
+    if (count > 0) {
+      throw new ConflictException(
+        'Não é possível excluir empresa com usuários ativos. Remova-os primeiro.',
+      );
+    }
+  }
 }

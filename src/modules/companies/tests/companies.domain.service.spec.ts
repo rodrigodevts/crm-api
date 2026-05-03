@@ -104,4 +104,35 @@ describe('CompaniesDomainService', () => {
       ).rejects.toBeInstanceOf(UnprocessableEntityException);
     });
   });
+
+  describe('assertNoActiveUsers', () => {
+    it('passes when count of active users is zero', async () => {
+      const tx = fakeTx();
+      (tx as { user: { count: ReturnType<typeof vi.fn> } }).user.count.mockResolvedValue(0);
+      await expect(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        service.assertNoActiveUsers('company-uuid', tx as any),
+      ).resolves.toBeUndefined();
+    });
+
+    it('throws ConflictException when at least one active user exists', async () => {
+      const tx = fakeTx();
+      (tx as { user: { count: ReturnType<typeof vi.fn> } }).user.count.mockResolvedValue(1);
+      await expect(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        service.assertNoActiveUsers('company-uuid', tx as any),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('filters by companyId and deletedAt: null in the count query', async () => {
+      const tx = fakeTx();
+      const countMock = (tx as { user: { count: ReturnType<typeof vi.fn> } }).user.count;
+      countMock.mockResolvedValue(0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+      await service.assertNoActiveUsers('company-uuid', tx as any);
+      expect(countMock).toHaveBeenCalledWith({
+        where: { companyId: 'company-uuid', deletedAt: null },
+      });
+    });
+  });
 });
