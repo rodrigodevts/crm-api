@@ -610,7 +610,7 @@ Padrão da Sprint 0.4: `app.inject()` (Fastify), `truncateAll` no `beforeEach`, 
 
 - ADMIN do tenant A → `GET /companies/<idDeB>` → **404** (não vaza existência).
 - ADMIN do tenant A → `GET /companies/<idDeA>` → 200.
-- AGENT do tenant A → `GET /companies/<idDeB>` → 404.
+- AGENT do tenant A → `GET /companies/<idDeB>` → 403 (RolesGuard barra antes; AGENT < ADMIN exigido).
 - Listagem como ADMIN → 403 (tem RolesGuard antes de chegar no app service).
 
 **Nota:** atualizar `docs/conventions/multi-tenant-checklist.md` com seção curta "Casos especiais — entidade que É o tenant", referenciando este spec. Sem reescrever o checklist; só linkar a exceção.

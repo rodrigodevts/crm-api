@@ -65,6 +65,8 @@ export class CompaniesApplicationService {
         return { company, admin };
       });
 
+      // TODO(future-sprint): se UserResponseSchema ganhar campos novos, atualizar este mapeamento.
+      // Hoje duplica UsersApplicationService.toDto pq aqui injetamos UsersDomainService (não o app service).
       return {
         company: this.toDto(result.company),
         admin: {
@@ -176,7 +178,7 @@ export class CompaniesApplicationService {
     await this.prisma.$transaction((tx) => this.companiesDomain.softDelete(id, tx));
   }
 
-  protected toDto(company: Company): CompanyResponseDto {
+  private toDto(company: Company): CompanyResponseDto {
     return {
       id: company.id,
       planId: company.planId,
@@ -203,7 +205,7 @@ export class CompaniesApplicationService {
     }
   }
 
-  protected mapConflict(err: unknown): unknown {
+  private mapConflict(err: unknown): unknown {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       const target = (err.meta?.target as string[] | undefined) ?? [];
       if (target.includes('slug')) return new ConflictException(SLUG_DUPLICATED);
@@ -212,7 +214,7 @@ export class CompaniesApplicationService {
     return err;
   }
 
-  protected assertStrict(schema: { parse: (value: unknown) => unknown }, input: unknown): void {
+  private assertStrict(schema: { parse: (value: unknown) => unknown }, input: unknown): void {
     try {
       schema.parse(input);
     } catch (error) {

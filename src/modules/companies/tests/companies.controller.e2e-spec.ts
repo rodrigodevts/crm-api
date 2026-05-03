@@ -685,6 +685,27 @@ describe('CompaniesController POST /companies sad paths (e2e)', () => {
     expect(res.statusCode).toBe(403);
   });
 
+  it('returns 403 when AGENT tries POST', async () => {
+    const company = await createCompany(getPrisma());
+    const { user, password } = await createUser(getPrisma(), company.id, {
+      role: 'AGENT',
+      email: 'agent-post@x.com',
+    });
+    const tokens = await loginAs(app, user.email, password);
+    const plan = await createPlan(getPrisma(), 'Default');
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/companies',
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      payload: {
+        company: { name: 'Test Co', slug: 'agent-forbid', planId: plan.id },
+        admin: { name: 'Admin Name', email: 'fa-agent@x.com', password: 'valid-1234' },
+      },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
   it('returns 400 when body missing admin section', async () => {
     const { tokens } = await setupSuperAdmin(app);
     const plan = await createPlan(getPrisma(), 'Default');

@@ -86,7 +86,20 @@ describe('CompaniesMeController PATCH /companies/me (e2e)', () => {
       method: 'PATCH',
       url: '/api/v1/companies/me',
       headers: { authorization: `Bearer ${tokens.accessToken}` },
-      payload: { name: 'New', timezone: 'America/Recife' },
+      payload: {
+        name: 'New',
+        timezone: 'America/Recife',
+        defaultWorkingHours: {
+          monday: [{ from: '09:00', to: '18:00' }],
+          tuesday: [],
+          wednesday: [],
+          thursday: [],
+          friday: [],
+          saturday: [],
+          sunday: [],
+          holiday: [],
+        },
+      },
     });
 
     expect(res.statusCode).toBe(200);
@@ -95,6 +108,9 @@ describe('CompaniesMeController PATCH /companies/me (e2e)', () => {
     const db = await getPrisma().company.findUnique({ where: { id: company.id } });
     expect(db?.name).toBe('New');
     expect(db?.timezone).toBe('America/Recife');
+
+    const wh = db?.defaultWorkingHours as { monday?: Array<{ from: string; to: string }> } | null;
+    expect(wh?.monday).toEqual([{ from: '09:00', to: '18:00' }]);
   });
 
   it('returns 400 when ADMIN tries to set planId via /me (strict)', async () => {
@@ -159,6 +175,21 @@ describe('CompaniesMeController PATCH /companies/me (e2e)', () => {
       payload: { name: 'X' },
     });
     expect(res.statusCode).toBe(403);
+
+    // SUPERVISOR também não pode (peso 2 < ADMIN peso 3)
+    const { user: supervisor, password: supPwd } = await createUser(getPrisma(), company.id, {
+      role: 'SUPERVISOR',
+      email: 'sup@x.com',
+    });
+    const supTokens = await loginAs(app, supervisor.email, supPwd);
+
+    const supRes = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/companies/me',
+      headers: { authorization: `Bearer ${supTokens.accessToken}` },
+      payload: { name: 'X-attempt' },
+    });
+    expect(supRes.statusCode).toBe(403);
   });
 
   it('clears outOfHoursMessage when null is sent', async () => {
