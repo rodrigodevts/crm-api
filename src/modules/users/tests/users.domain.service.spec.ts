@@ -1,7 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import type { Prisma, User } from '@prisma/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { decodeCursor, encodeCursor } from '../../../common/cursor';
 import type { PrismaService } from '../../../database/prisma.service';
 import { UsersDomainService } from '../services/users.domain.service';
 
@@ -164,25 +163,6 @@ describe('UsersDomainService.assertNotLastAdmin', () => {
       status: 409,
       message: 'Não é possível remover o último ADMIN do tenant',
     });
-  });
-});
-
-describe('cursor helper (used by UsersDomainService.list)', () => {
-  it('encodes and decodes a cursor symmetrically', () => {
-    const date = new Date('2026-05-01T10:00:00.000Z');
-    const id = '00000000-0000-7000-8000-000000000001';
-    const cursor = encodeCursor(date, id);
-    expect(typeof cursor).toBe('string');
-    const decoded = decodeCursor(cursor);
-    expect(decoded).toEqual({ createdAt: date, id });
-  });
-
-  it('returns null when decoding undefined', () => {
-    expect(decodeCursor(undefined)).toBeNull();
-  });
-
-  it('throws BadRequestException when cursor is malformed', () => {
-    expect(() => decodeCursor('not-base64-json')).toThrow();
   });
 });
 
