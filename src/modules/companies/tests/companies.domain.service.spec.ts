@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, UnprocessableEntityException } from '@nestjs/common';
 import { CompaniesDomainService } from '../services/companies.domain.service';
 import type { PrismaService } from '../../../database/prisma.service';
 
@@ -66,6 +66,42 @@ describe('CompaniesDomainService', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
         service.assertSlugAvailable('acme', tx as any, 'self-uuid'),
       ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('assertPlanIsActive', () => {
+    it('passes when plan exists and is active', async () => {
+      const tx = fakeTx();
+      (tx as { plan: { findFirst: ReturnType<typeof vi.fn> } }).plan.findFirst.mockResolvedValue({
+        id: 'plan-uuid',
+        active: true,
+      });
+      await expect(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        service.assertPlanIsActive('plan-uuid', tx as any),
+      ).resolves.toBeUndefined();
+    });
+
+    it('throws UnprocessableEntityException when plan is inactive', async () => {
+      const tx = fakeTx();
+      (tx as { plan: { findFirst: ReturnType<typeof vi.fn> } }).plan.findFirst.mockResolvedValue(
+        null,
+      );
+      await expect(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        service.assertPlanIsActive('plan-uuid', tx as any),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    });
+
+    it('throws UnprocessableEntityException when plan does not exist', async () => {
+      const tx = fakeTx();
+      (tx as { plan: { findFirst: ReturnType<typeof vi.fn> } }).plan.findFirst.mockResolvedValue(
+        null,
+      );
+      await expect(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        service.assertPlanIsActive('missing-uuid', tx as any),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
     });
   });
 });
