@@ -1,32 +1,13 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../../database/prisma.service';
+import { UsersDomainService } from '../../users/services/users.domain.service';
 import { CompaniesDomainService } from './companies.domain.service';
 
 @Injectable()
 export class CompaniesApplicationService {
-  constructor(private readonly domainService: CompaniesDomainService) {}
-
-  list(_companyId: string): Promise<unknown> {
-    // TODO: orquestrar listagem (paginação, filtros)
-    throw new NotImplementedException();
-  }
-
-  getById(_id: string, _companyId: string): Promise<unknown> {
-    // TODO: orquestrar busca
-    throw new NotImplementedException();
-  }
-
-  create(_companyId: string, _input: unknown): Promise<unknown> {
-    // TODO: orquestrar criação
-    throw new NotImplementedException();
-  }
-
-  update(_id: string, _companyId: string, _input: unknown): Promise<unknown> {
-    // TODO: orquestrar atualização
-    throw new NotImplementedException();
-  }
-
-  remove(_id: string, _companyId: string): Promise<void> {
-    // TODO: orquestrar remoção (soft delete se aplicável)
-    throw new NotImplementedException();
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly companiesDomain: CompaniesDomainService,
+    private readonly usersDomain: UsersDomainService,
+  ) {}
 }
