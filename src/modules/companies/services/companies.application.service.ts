@@ -16,6 +16,7 @@ import type {
 } from '../schemas/company-response.schema';
 import type { CreateCompanyInput } from '../schemas/create-company.schema';
 import type { ListCompaniesQueryInput } from '../schemas/list-companies.schema';
+import { UpdateCompanyMeDto, UpdateCompanyMeSchema } from '../schemas/update-company-me.schema';
 import { WorkingHoursSchema, type WorkingHoursDto } from '../schemas/working-hours.schema';
 import { CompaniesDomainService } from './companies.domain.service';
 
@@ -117,6 +118,28 @@ export class CompaniesApplicationService {
       throw new NotFoundException('Empresa não encontrada');
     }
     const company = await this.companiesDomain.findById(id);
+    return this.toDto(company);
+  }
+
+  async updateMine(currentUser: User, input: UpdateCompanyMeDto): Promise<CompanyResponseDto> {
+    this.assertStrict(UpdateCompanyMeSchema, input);
+
+    const patch: Prisma.CompanyUpdateInput = {};
+    if (input.name !== undefined) patch.name = input.name;
+    if (input.timezone !== undefined) patch.timezone = input.timezone;
+    if ('defaultWorkingHours' in input) {
+      patch.defaultWorkingHours =
+        input.defaultWorkingHours === null || input.defaultWorkingHours === undefined
+          ? Prisma.DbNull
+          : (input.defaultWorkingHours);
+    }
+    if ('outOfHoursMessage' in input) {
+      patch.outOfHoursMessage = input.outOfHoursMessage ?? null;
+    }
+
+    const company = await this.prisma.$transaction((tx) =>
+      this.companiesDomain.update(currentUser.companyId, patch, tx),
+    );
     return this.toDto(company);
   }
 
