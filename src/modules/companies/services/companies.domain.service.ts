@@ -172,4 +172,13 @@ export class CompaniesDomainService {
       },
     });
   }
+
+  async softDelete(id: string, tx: Prisma.TransactionClient): Promise<void> {
+    const existing = await this.findById(id, tx);
+    await this.assertNoActiveUsers(existing.id, tx);
+    await tx.company.update({
+      where: { id: existing.id },
+      data: { deletedAt: new Date() },
+    });
+  }
 }

@@ -174,4 +174,52 @@ describe('CompaniesDomainService', () => {
       expect(call.data).toHaveProperty('name', 'Renamed');
     });
   });
+
+  describe('softDelete', () => {
+    it('throws ConflictException when active users exist', async () => {
+      const existing = { id: 'company-uuid', deletedAt: null };
+      const tx = {
+        company: {
+          findFirst: vi.fn().mockResolvedValue(existing),
+          update: vi.fn(),
+        },
+        user: {
+          count: vi.fn().mockResolvedValue(1),
+        },
+        plan: { findFirst: vi.fn() },
+      };
+      await expect(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        service.softDelete('company-uuid', tx as any),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(tx.company.update).not.toHaveBeenCalled();
+    });
+
+    it('sets deletedAt when no active users exist', async () => {
+      const existing = { id: 'company-uuid', deletedAt: null };
+      const updateMock = vi.fn().mockResolvedValue({ ...existing, deletedAt: new Date() });
+      const tx = {
+        company: {
+          findFirst: vi.fn().mockResolvedValue(existing),
+          update: updateMock,
+        },
+        user: {
+          count: vi.fn().mockResolvedValue(0),
+        },
+        plan: { findFirst: vi.fn() },
+      };
+      await expect(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+        service.softDelete('company-uuid', tx as any),
+      ).resolves.toBeUndefined();
+
+      expect(updateMock).toHaveBeenCalledTimes(1);
+      const call = updateMock.mock.calls[0]![0] as {
+        where: { id: string };
+        data: { deletedAt: Date };
+      };
+      expect(call.where.id).toBe('company-uuid');
+      expect(call.data.deletedAt).toBeInstanceOf(Date);
+    });
+  });
 });
