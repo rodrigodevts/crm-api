@@ -12,6 +12,7 @@ import { PrismaModule } from './database/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
+import { CompaniesModule } from './modules/companies/companies.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { UsersModule } from './modules/users/users.module';
     AuthModule,
     HealthModule,
     UsersModule,
+    CompaniesModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodValidationPipe },
