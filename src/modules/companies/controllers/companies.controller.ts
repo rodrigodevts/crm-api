@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -67,5 +68,12 @@ export class CompaniesController {
     @Body() body: UpdateCompanyDto,
   ): Promise<CompanyResponseDto> {
     return this.companies.updateById(id, body);
+  }
+
+  @Delete(':id')
+  @Roles('SUPER_ADMIN')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async delete(@Param('id') id: string): Promise<void> {
+    await this.companies.softDelete(id);
   }
 }

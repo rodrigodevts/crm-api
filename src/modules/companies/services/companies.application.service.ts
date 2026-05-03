@@ -154,7 +154,7 @@ export class CompaniesApplicationService {
       patch.defaultWorkingHours =
         input.defaultWorkingHours === null || input.defaultWorkingHours === undefined
           ? Prisma.DbNull
-          : (input.defaultWorkingHours);
+          : input.defaultWorkingHours;
     }
     if ('outOfHoursMessage' in input) {
       patch.outOfHoursMessage = input.outOfHoursMessage ?? null;
@@ -170,6 +170,10 @@ export class CompaniesApplicationService {
       this.companiesDomain.update(id, patch, tx),
     );
     return this.toDto(company);
+  }
+
+  async softDelete(id: string): Promise<void> {
+    await this.prisma.$transaction((tx) => this.companiesDomain.softDelete(id, tx));
   }
 
   protected toDto(company: Company): CompanyResponseDto {
