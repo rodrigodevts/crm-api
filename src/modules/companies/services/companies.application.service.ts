@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { Prisma, type Company } from '@prisma/client';
+import { Prisma, type Company, type User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { ZodError } from 'zod';
 import { PrismaService } from '../../../database/prisma.service';
@@ -99,6 +99,11 @@ export class CompaniesApplicationService {
         hasMore: result.hasMore,
       },
     };
+  }
+
+  async findMine(currentUser: User): Promise<CompanyResponseDto> {
+    const company = await this.companiesDomain.findById(currentUser.companyId);
+    return this.toDto(company);
   }
 
   protected toDto(company: Company): CompanyResponseDto {
