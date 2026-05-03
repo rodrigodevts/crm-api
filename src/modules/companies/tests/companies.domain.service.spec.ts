@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ConflictException, UnprocessableEntityException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { CompaniesDomainService } from '../services/companies.domain.service';
 import type { PrismaService } from '../../../database/prisma.service';
 
@@ -133,6 +134,44 @@ describe('CompaniesDomainService', () => {
       expect(countMock).toHaveBeenCalledWith({
         where: { companyId: 'company-uuid', deletedAt: null },
       });
+    });
+  });
+
+  describe('update', () => {
+    it('ignores patch.slug even if present (defense in depth)', async () => {
+      const existing = {
+        id: 'company-uuid',
+        slug: 'original-slug',
+        name: 'Original',
+        planId: 'plan-uuid',
+        active: true,
+        timezone: 'America/Sao_Paulo',
+        defaultWorkingHours: null,
+        outOfHoursMessage: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      };
+      const updateMock = vi.fn().mockResolvedValue({ ...existing, name: 'Renamed' });
+      const findFirstMock = vi.fn().mockResolvedValue(existing);
+      const tx = {
+        company: {
+          findFirst: findFirstMock,
+          update: updateMock,
+        },
+        plan: { findFirst: vi.fn() },
+        user: { count: vi.fn() },
+      };
+
+      // Cast: simula um caller fora do app service que tente vazar slug
+      const patch = { name: 'Renamed', slug: 'malicious-new-slug' } as Prisma.CompanyUpdateInput;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument
+      await service.update('company-uuid', patch, tx as any);
+
+      expect(updateMock).toHaveBeenCalledTimes(1);
+      const call = updateMock.mock.calls[0]![0] as { data: Record<string, unknown> };
+      expect(call.data).not.toHaveProperty('slug');
+      expect(call.data).toHaveProperty('name', 'Renamed');
     });
   });
 });

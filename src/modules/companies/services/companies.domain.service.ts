@@ -122,6 +122,35 @@ export class CompaniesDomainService {
     return { items: trimmed, nextCursor, hasMore };
   }
 
+  async update(
+    id: string,
+    patch: Prisma.CompanyUpdateInput,
+    tx: Prisma.TransactionClient,
+  ): Promise<Company> {
+    const existing = await this.findById(id, tx);
+
+    // Defesa em profundidade: schema do PATCH não aceita slug, mas se vazar,
+    // o domain ignora.
+    const sanitizedPatch: Prisma.CompanyUpdateInput = { ...patch };
+    if ('slug' in sanitizedPatch) {
+      delete (sanitizedPatch as Record<string, unknown>).slug;
+    }
+
+    // Se planId mudou, validar que o novo plano está ativo
+    const planRef = sanitizedPatch.plan;
+    if (planRef && typeof planRef === 'object' && 'connect' in planRef) {
+      const planId = (planRef.connect as { id: string }).id;
+      if (planId !== existing.planId) {
+        await this.assertPlanIsActive(planId, tx);
+      }
+    }
+
+    return tx.company.update({
+      where: { id: existing.id },
+      data: sanitizedPatch,
+    });
+  }
+
   async create(input: CreateCompanyInput, tx: Prisma.TransactionClient): Promise<Company> {
     await this.assertSlugAvailable(input.slug, tx);
     await this.assertPlanIsActive(input.planId, tx);
