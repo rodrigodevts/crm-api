@@ -6,6 +6,23 @@ import {
 } from '@nestjs/common';
 import type { Company, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
+import { decodeCursor, encodeCursor } from '../../../common/cursor';
+
+export interface ListCompaniesFilters {
+  active?: boolean;
+  search?: string;
+}
+
+export interface ListCompaniesPagination {
+  cursor?: string;
+  limit: number;
+}
+
+export interface ListCompaniesResult {
+  items: Company[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
 
 @Injectable()
 export class CompaniesDomainService {
@@ -49,5 +66,49 @@ export class CompaniesDomainService {
       throw new NotFoundException('Empresa não encontrada');
     }
     return company;
+  }
+
+  async list(
+    filters: ListCompaniesFilters,
+    pagination: ListCompaniesPagination,
+  ): Promise<ListCompaniesResult> {
+    const decoded = decodeCursor(pagination.cursor);
+    const conditions: Prisma.CompanyWhereInput[] = [];
+
+    if (filters.search) {
+      conditions.push({
+        OR: [
+          { name: { contains: filters.search, mode: 'insensitive' } },
+          { slug: { contains: filters.search, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    if (decoded) {
+      conditions.push({
+        OR: [
+          { createdAt: { lt: decoded.createdAt } },
+          { createdAt: decoded.createdAt, id: { lt: decoded.id } },
+        ],
+      });
+    }
+
+    const where: Prisma.CompanyWhereInput = {
+      ...(filters.active !== false ? { deletedAt: null, active: true } : {}),
+      ...(conditions.length > 0 ? { AND: conditions } : {}),
+    };
+
+    const items = await this.prisma.company.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: pagination.limit + 1,
+    });
+
+    const hasMore = items.length > pagination.limit;
+    const trimmed = hasMore ? items.slice(0, pagination.limit) : items;
+    const last = trimmed[trimmed.length - 1];
+    const nextCursor = hasMore && last ? encodeCursor(last.createdAt, last.id) : null;
+
+    return { items: trimmed, nextCursor, hasMore };
   }
 }
