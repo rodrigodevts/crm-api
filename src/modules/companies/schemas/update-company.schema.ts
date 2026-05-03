@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 import { WorkingHoursSchema } from './working-hours.schema';
 
 export const UpdateCompanySchema = z
@@ -13,4 +14,5 @@ export const UpdateCompanySchema = z
   .strict()
   .describe('Campos editáveis pelo SUPER_ADMIN. Não inclui slug (imutável).');
 
-export type UpdateCompanyDto = z.infer<typeof UpdateCompanySchema>;
+export type UpdateCompanyInput = z.infer<typeof UpdateCompanySchema>;
+export class UpdateCompanyDto extends createZodDto(UpdateCompanySchema) {}

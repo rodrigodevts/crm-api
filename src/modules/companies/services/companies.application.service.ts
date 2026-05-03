@@ -17,6 +17,7 @@ import type {
 import type { CreateCompanyInput } from '../schemas/create-company.schema';
 import type { ListCompaniesQueryInput } from '../schemas/list-companies.schema';
 import { UpdateCompanyMeDto, UpdateCompanyMeSchema } from '../schemas/update-company-me.schema';
+import { UpdateCompanyDto, UpdateCompanySchema } from '../schemas/update-company.schema';
 import { WorkingHoursSchema, type WorkingHoursDto } from '../schemas/working-hours.schema';
 import { CompaniesDomainService } from './companies.domain.service';
 
@@ -131,7 +132,7 @@ export class CompaniesApplicationService {
       patch.defaultWorkingHours =
         input.defaultWorkingHours === null || input.defaultWorkingHours === undefined
           ? Prisma.DbNull
-          : (input.defaultWorkingHours);
+          : input.defaultWorkingHours;
     }
     if ('outOfHoursMessage' in input) {
       patch.outOfHoursMessage = input.outOfHoursMessage ?? null;
@@ -139,6 +140,34 @@ export class CompaniesApplicationService {
 
     const company = await this.prisma.$transaction((tx) =>
       this.companiesDomain.update(currentUser.companyId, patch, tx),
+    );
+    return this.toDto(company);
+  }
+
+  async updateById(id: string, input: UpdateCompanyDto): Promise<CompanyResponseDto> {
+    this.assertStrict(UpdateCompanySchema, input);
+
+    const patch: Prisma.CompanyUpdateInput = {};
+    if (input.name !== undefined) patch.name = input.name;
+    if (input.timezone !== undefined) patch.timezone = input.timezone;
+    if ('defaultWorkingHours' in input) {
+      patch.defaultWorkingHours =
+        input.defaultWorkingHours === null || input.defaultWorkingHours === undefined
+          ? Prisma.DbNull
+          : (input.defaultWorkingHours);
+    }
+    if ('outOfHoursMessage' in input) {
+      patch.outOfHoursMessage = input.outOfHoursMessage ?? null;
+    }
+    if (input.planId !== undefined) {
+      patch.plan = { connect: { id: input.planId } };
+    }
+    if (input.active !== undefined) {
+      patch.active = input.active;
+    }
+
+    const company = await this.prisma.$transaction((tx) =>
+      this.companiesDomain.update(id, patch, tx),
     );
     return this.toDto(company);
   }

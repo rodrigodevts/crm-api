@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ZodSerializerDto } from 'nestjs-zod';
 import type { User } from '@prisma/client';
@@ -16,6 +26,7 @@ import {
 } from '../schemas/company-with-admin-response.schema';
 import { CreateCompanyDto } from '../schemas/create-company.schema';
 import { ListCompaniesQueryDto } from '../schemas/list-companies.schema';
+import { UpdateCompanyDto } from '../schemas/update-company.schema';
 import { CompaniesApplicationService } from '../services/companies.application.service';
 
 @ApiTags('companies')
@@ -46,5 +57,15 @@ export class CompaniesController {
     @CurrentUser() currentUser: User,
   ): Promise<CompanyResponseDto> {
     return this.companies.findByIdAuthorized(id, currentUser);
+  }
+
+  @Patch(':id')
+  @Roles('SUPER_ADMIN')
+  @ZodSerializerDto(CompanyResponseSchema)
+  async updateById(
+    @Param('id') id: string,
+    @Body() body: UpdateCompanyDto,
+  ): Promise<CompanyResponseDto> {
+    return this.companies.updateById(id, body);
   }
 }

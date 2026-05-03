@@ -11,6 +11,11 @@ import {
   truncateAll,
 } from '../../../../test/e2e/factories';
 
+interface ErrorBody {
+  message: string;
+  errors?: Array<{ field: string; message: string; code: string }>;
+}
+
 interface CompanyDto {
   id: string;
   planId: string;
@@ -262,6 +267,111 @@ describe('CompaniesController GET /companies/:id (e2e)', () => {
       headers: { authorization: `Bearer ${tokens.accessToken}` },
     });
 
+    expect(res.statusCode).toBe(404);
+  });
+});
+
+describe('CompaniesController PATCH /companies/:id (e2e)', () => {
+  let app: NestFastifyApplication;
+
+  beforeAll(async () => {
+    app = await bootstrapTestApp();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+  });
+
+  it('SUPER_ADMIN updates name, planId and active', async () => {
+    const { tokens } = await setupSuperAdmin(app);
+    const newPlan = await createPlan(getPrisma(), 'Pro');
+    const target = await createCompany(getPrisma(), { slug: 'tg-co' });
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/companies/${target.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      payload: { name: 'Renamed', planId: newPlan.id, active: false },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json<CompanyDto>();
+    expect(body.name).toBe('Renamed');
+    expect(body.active).toBe(false);
+    expect(body.planId).toBe(newPlan.id);
+  });
+
+  it('returns 422 when planId points to inactive plan', async () => {
+    const { tokens } = await setupSuperAdmin(app);
+    const inactivePlan = await getPrisma().plan.create({
+      data: { name: 'Old', active: false },
+    });
+    const target = await createCompany(getPrisma(), { slug: 'inactive-plan-co' });
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/companies/${target.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      payload: { planId: inactivePlan.id },
+    });
+
+    expect(res.statusCode).toBe(422);
+    expect(res.json<ErrorBody>().message).toBe('Plano não encontrado ou inativo');
+  });
+
+  it('returns 400 when SUPER_ADMIN tries to send slug', async () => {
+    const { tokens } = await setupSuperAdmin(app);
+    const target = await createCompany(getPrisma(), { slug: 'orig' });
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/companies/${target.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      payload: { slug: 'new-slug' },
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json<ErrorBody>().errors?.map((e) => e.code)).toContain('unrecognized_keys');
+
+    const db = await getPrisma().company.findUnique({ where: { id: target.id } });
+    expect(db?.slug).toBe('orig');
+  });
+
+  it('returns 403 when ADMIN tries PATCH /companies/:id', async () => {
+    const company = await createCompany(getPrisma());
+    const { user, password } = await createUser(getPrisma(), company.id, {
+      role: 'ADMIN',
+      email: 'a@d.com',
+    });
+    const tokens = await loginAs(app, user.email, password);
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/companies/${company.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      payload: { name: 'X' },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('returns 404 when target is soft-deleted', async () => {
+    const { tokens } = await setupSuperAdmin(app);
+    const target = await createCompany(getPrisma(), { slug: 'sd-co' });
+    await getPrisma().company.update({
+      where: { id: target.id },
+      data: { deletedAt: new Date() },
+    });
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/companies/${target.id}`,
+      headers: { authorization: `Bearer ${tokens.accessToken}` },
+      payload: { name: 'Updated Name' },
+    });
     expect(res.statusCode).toBe(404);
   });
 });
