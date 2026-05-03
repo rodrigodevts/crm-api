@@ -175,6 +175,23 @@ describe('CompaniesDomainService', () => {
     });
   });
 
+  describe('list', () => {
+    it('excludes soft-deleted companies even when filters.active === false', async () => {
+      const findManyMock = vi.fn().mockResolvedValue([]);
+      const prismaWithList = { company: { findMany: findManyMock } };
+      const localService = new CompaniesDomainService(prismaWithList as unknown as PrismaService);
+
+      await localService.list({ active: false }, { limit: 20 });
+
+      expect(findManyMock).toHaveBeenCalledTimes(1);
+      const call = findManyMock.mock.calls[0]![0] as { where: Record<string, unknown> };
+      // deletedAt must always be null, regardless of active filter
+      expect(call.where).toMatchObject({ deletedAt: null });
+      // and active: true must NOT be in the filter when filters.active === false
+      expect(call.where).not.toHaveProperty('active');
+    });
+  });
+
   describe('softDelete', () => {
     it('throws ConflictException when active users exist', async () => {
       const existing = { id: 'company-uuid', deletedAt: null };

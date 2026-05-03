@@ -104,7 +104,8 @@ export class CompaniesDomainService {
     }
 
     const where: Prisma.CompanyWhereInput = {
-      ...(filters.active !== false ? { deletedAt: null, active: true } : {}),
+      deletedAt: null,
+      ...(filters.active !== false ? { active: true } : {}),
       ...(conditions.length > 0 ? { AND: conditions } : {}),
     };
 
