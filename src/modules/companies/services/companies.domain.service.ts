@@ -1,5 +1,10 @@
-import { ConflictException, Injectable, UnprocessableEntityException } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
+import type { Company, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 
 @Injectable()
@@ -33,5 +38,16 @@ export class CompaniesDomainService {
         'Não é possível excluir empresa com usuários ativos. Remova-os primeiro.',
       );
     }
+  }
+
+  async findById(id: string, tx?: Prisma.TransactionClient): Promise<Company> {
+    const db = tx ?? this.prisma;
+    const company = await db.company.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!company) {
+      throw new NotFoundException('Empresa não encontrada');
+    }
+    return company;
   }
 }
