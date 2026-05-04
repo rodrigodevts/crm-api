@@ -168,7 +168,7 @@ Fase 9+ (Backlog, IA quando priorizada)
 - [x] Companies (apenas SUPER_ADMIN)
 - [x] Users (com force-logout)
 - [x] Departments (com working hours)
-- [ ] Tags (com escopo)
+- [x] Tags (com escopo)
 - [ ] CloseReasons (com reorder)
 - [ ] CompanySettings (PATCH único)
 
