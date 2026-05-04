@@ -262,5 +262,225 @@ describe('DepartmentsController (e2e) — happy paths', () => {
   });
 });
 
+describe('DepartmentsController (e2e) — sad paths', () => {
+  let app: NestFastifyApplication;
+  let company: Company;
+  let admin: { user: User; password: string };
+  let agent: { user: User; password: string };
+  let tokenAdmin: string;
+  let tokenAgent: string;
+
+  beforeAll(async () => {
+    app = await bootstrapTestApp();
+  });
+  afterAll(async () => {
+    await app.close();
+  });
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+    company = await createCompany(getPrisma());
+    admin = await createUser(getPrisma(), company.id, { role: 'ADMIN' });
+    agent = await createUser(getPrisma(), company.id, { role: 'AGENT' });
+    ({ accessToken: tokenAdmin } = await loginAs(app, admin.user.email, admin.password));
+    ({ accessToken: tokenAgent } = await loginAs(app, agent.user.email, agent.password));
+  });
+
+  it('POST como AGENT → 403', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/departments',
+      headers: { authorization: `Bearer ${tokenAgent}` },
+      payload: { name: 'Suporte' },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('POST como SUPERVISOR → 403', async () => {
+    const sup = await createUser(getPrisma(), company.id, { role: 'SUPERVISOR' });
+    const { accessToken: tokenSup } = await loginAs(app, sup.user.email, sup.password);
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/departments',
+      headers: { authorization: `Bearer ${tokenSup}` },
+      payload: { name: 'Suporte' },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('POST com name colidindo no tenant → 409', async () => {
+    await createDepartment(getPrisma(), company.id, { name: 'Suporte' });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/departments',
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { name: 'Suporte' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json<ErrorBody>().message).toMatch(/Já existe um departamento/i);
+  });
+
+  it('POST com chave extra (companyId) → 400 Unrecognized key', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/departments',
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { name: 'Suporte', companyId: 'forge-id' },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('POST com distributionMode inválido → 400', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/departments',
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { name: 'Suporte', distributionMode: 'NOPE' },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('POST com slaResponseMinutes negativo → 400', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/departments',
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { name: 'Suporte', slaResponseMinutes: -5 },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('POST com slaResponseMinutes > 43200 → 400', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/departments',
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { name: 'Suporte', slaResponseMinutes: 99999 },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('POST com workingHours formato fora HH:MM → 400', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/departments',
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: {
+        name: 'Suporte',
+        workingHours: {
+          monday: [{ from: '09', to: '18:00' }],
+          tuesday: [],
+          wednesday: [],
+          thursday: [],
+          friday: [],
+          saturday: [],
+          sunday: [],
+          holiday: [],
+        },
+      },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('PATCH como AGENT → 403', async () => {
+    const dept = await createDepartment(getPrisma(), company.id);
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/departments/${dept.id}`,
+      headers: { authorization: `Bearer ${tokenAgent}` },
+      payload: { name: 'X' },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('PATCH com chave extra (companyId) → 400 Unrecognized key', async () => {
+    const dept = await createDepartment(getPrisma(), company.id);
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/departments/${dept.id}`,
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { companyId: 'forge-id' },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('PATCH com name colidindo com outro depto do tenant → 409', async () => {
+    await createDepartment(getPrisma(), company.id, { name: 'Vendas' });
+    const dept = await createDepartment(getPrisma(), company.id, { name: 'Suporte' });
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/departments/${dept.id}`,
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { name: 'Vendas' },
+    });
+    expect(res.statusCode).toBe(409);
+  });
+
+  it('PATCH em depto inexistente → 404', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/departments/00000000-0000-0000-0000-000000000000`,
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { name: 'Outro' },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('DELETE como AGENT → 403', async () => {
+    const dept = await createDepartment(getPrisma(), company.id);
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/departments/${dept.id}`,
+      headers: { authorization: `Bearer ${tokenAgent}` },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('DELETE em depto inexistente → 404', async () => {
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/departments/00000000-0000-0000-0000-000000000000`,
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('GET /:id em depto soft-deletado → 404', async () => {
+    const dept = await createDepartment(getPrisma(), company.id);
+    await getPrisma().department.update({
+      where: { id: dept.id },
+      data: { deletedAt: new Date() },
+    });
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/departments/${dept.id}`,
+      headers: { authorization: `Bearer ${tokenAgent}` },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('GET com cursor base64 quebrado → 400', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/departments?cursor=${encodeURIComponent('!!!quebrado!!!')}`,
+      headers: { authorization: `Bearer ${tokenAgent}` },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('GET sort=name + cursor de sort=createdAt → 400 Cursor inválido', async () => {
+    const badCursor = Buffer.from(
+      JSON.stringify({ createdAt: '2026-05-03T00:00:00.000Z', id: 'a' }),
+      'utf8',
+    ).toString('base64url');
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/departments?sort=name&cursor=${encodeURIComponent(badCursor)}`,
+      headers: { authorization: `Bearer ${tokenAgent}` },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json<ErrorBody>().message).toMatch(/Cursor inválido/i);
+  });
+});
+
 // Re-export interfaces para reuso nas próximas tasks (evita redefinir).
 export type { DepartmentDto, DepartmentDetailDto, ListResponse, ErrorBody };
