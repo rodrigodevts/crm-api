@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -7,7 +8,7 @@ import {
 import { Prisma } from '@prisma/client';
 import type { Company } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
-import { decodeCursor, encodeCursor } from '../../../common/cursor';
+import { decodeCursor, encodeCursor } from '@/common/cursor';
 
 export interface ListCompaniesFilters {
   active?: boolean;
@@ -82,7 +83,12 @@ export class CompaniesDomainService {
     filters: ListCompaniesFilters,
     pagination: ListCompaniesPagination,
   ): Promise<ListCompaniesResult> {
-    const decoded = decodeCursor(pagination.cursor);
+    const decoded = decodeCursor<{ createdAt: string; id: string }>(pagination.cursor);
+    if (decoded !== null) {
+      if (typeof decoded.createdAt !== 'string' || typeof decoded.id !== 'string') {
+        throw new BadRequestException('Cursor inválido');
+      }
+    }
     const conditions: Prisma.CompanyWhereInput[] = [];
 
     if (filters.search) {
@@ -97,8 +103,8 @@ export class CompaniesDomainService {
     if (decoded) {
       conditions.push({
         OR: [
-          { createdAt: { lt: decoded.createdAt } },
-          { createdAt: decoded.createdAt, id: { lt: decoded.id } },
+          { createdAt: { lt: new Date(decoded.createdAt) } },
+          { createdAt: new Date(decoded.createdAt), id: { lt: decoded.id } },
         ],
       });
     }
@@ -118,7 +124,10 @@ export class CompaniesDomainService {
     const hasMore = items.length > pagination.limit;
     const trimmed = hasMore ? items.slice(0, pagination.limit) : items;
     const last = trimmed[trimmed.length - 1];
-    const nextCursor = hasMore && last ? encodeCursor(last.createdAt, last.id) : null;
+    const nextCursor =
+      hasMore && last
+        ? encodeCursor({ createdAt: last.createdAt.toISOString(), id: last.id })
+        : null;
 
     return { items: trimmed, nextCursor, hasMore };
   }
