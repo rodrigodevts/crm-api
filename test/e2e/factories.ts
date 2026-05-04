@@ -6,6 +6,8 @@ import type {
   Plan,
   Prisma,
   PrismaClient,
+  Tag,
+  TagScope,
   User,
   UserRole,
 } from '@prisma/client';
@@ -115,6 +117,27 @@ export async function createSuperAdmin(
     email: options.email ?? `super-${nextId()}@test.local`,
     password: options.password ?? 'valid-password-1234',
     name: options.name ?? `SuperAdmin ${nextId()}`,
+  });
+}
+
+export async function createTag(
+  prisma: PrismaClient,
+  companyId: string,
+  overrides: Partial<{
+    name: string;
+    color: string;
+    scope: TagScope;
+    active: boolean;
+  }> = {},
+): Promise<Tag> {
+  return prisma.tag.create({
+    data: {
+      companyId,
+      name: overrides.name ?? `Tag ${nextId()}`,
+      color: overrides.color ?? '#FF0000',
+      scope: overrides.scope ?? 'BOTH',
+      active: overrides.active ?? true,
+    },
   });
 }
 

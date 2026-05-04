@@ -14,6 +14,7 @@ import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
 import { CompaniesModule } from './modules/companies/companies.module';
 import { DepartmentsModule } from './modules/departments/departments.module';
+import { TagsModule } from './modules/tags/tags.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { DepartmentsModule } from './modules/departments/departments.module';
     UsersModule,
     CompaniesModule,
     DepartmentsModule,
+    TagsModule,
   ],
   providers: [
     { provide: APP_PIPE, useClass: ZodValidationPipe },
