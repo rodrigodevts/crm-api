@@ -17,5 +17,4 @@ export const CreateDepartmentSchema = z
   .strict()
   .describe('Dados para criar departamento');
 
-export type CreateDepartmentDto = z.infer<typeof CreateDepartmentSchema>;
-export class CreateDepartmentDtoClass extends createZodDto(CreateDepartmentSchema) {}
+export class CreateDepartmentDto extends createZodDto(CreateDepartmentSchema) {}

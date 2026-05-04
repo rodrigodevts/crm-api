@@ -6,6 +6,6 @@ import { DepartmentsDomainService } from './services/departments.domain.service'
 @Module({
   controllers: [DepartmentsController],
   providers: [DepartmentsApplicationService, DepartmentsDomainService],
-  exports: [DepartmentsApplicationService],
+  exports: [DepartmentsApplicationService, DepartmentsDomainService],
 })
 export class DepartmentsModule {}

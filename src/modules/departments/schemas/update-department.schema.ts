@@ -17,5 +17,4 @@ export const UpdateDepartmentSchema = z
   .strict()
   .describe('Campos editáveis em departamento. Strict.');
 
-export type UpdateDepartmentDto = z.infer<typeof UpdateDepartmentSchema>;
-export class UpdateDepartmentDtoClass extends createZodDto(UpdateDepartmentSchema) {}
+export class UpdateDepartmentDto extends createZodDto(UpdateDepartmentSchema) {}

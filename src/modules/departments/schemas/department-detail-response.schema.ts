@@ -12,7 +12,4 @@ export const DepartmentDetailResponseSchema = DepartmentResponseSchema.extend({
   users: z.array(UserRefSchema),
 }).describe('Departamento com lista mínima dos usuários atribuídos');
 
-export type DepartmentDetailResponseDto = z.infer<typeof DepartmentDetailResponseSchema>;
-export class DepartmentDetailResponseDtoClass extends createZodDto(
-  DepartmentDetailResponseSchema,
-) {}
+export class DepartmentDetailResponseDto extends createZodDto(DepartmentDetailResponseSchema) {}

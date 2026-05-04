@@ -28,7 +28,5 @@ export const DepartmentListResponseSchema = z.object({
   }),
 });
 
-export type DepartmentResponseDto = z.infer<typeof DepartmentResponseSchema>;
-export type DepartmentListResponseDto = z.infer<typeof DepartmentListResponseSchema>;
-export class DepartmentResponseDtoClass extends createZodDto(DepartmentResponseSchema) {}
-export class DepartmentListResponseDtoClass extends createZodDto(DepartmentListResponseSchema) {}
+export class DepartmentResponseDto extends createZodDto(DepartmentResponseSchema) {}
+export class DepartmentListResponseDto extends createZodDto(DepartmentListResponseSchema) {}

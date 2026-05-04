@@ -1,3 +1,4 @@
+import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
 export const ListDepartmentsQuerySchema = z
@@ -10,4 +11,4 @@ export const ListDepartmentsQuerySchema = z
   })
   .describe('Filtros para listagem de departamentos');
 
-export type ListDepartmentsQueryDto = z.infer<typeof ListDepartmentsQuerySchema>;
+export class ListDepartmentsQueryDto extends createZodDto(ListDepartmentsQuerySchema) {}
