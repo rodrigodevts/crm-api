@@ -310,3 +310,50 @@ describe('TagsDomainService.softDelete', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
+
+describe('TagsDomainService.findByIdWithCounts', () => {
+  let service: TagsDomainService;
+  let companyA: Company;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [TagsDomainService, { provide: PrismaService, useValue: getPrisma() }],
+    }).compile();
+    service = moduleRef.get(TagsDomainService);
+  });
+
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+    companyA = await createCompany(getPrisma());
+  });
+
+  it('retorna tag com _count zerado quando sem assignments', async () => {
+    const tag = await createTag(getPrisma(), companyA.id);
+    const found = await service.findByIdWithCounts(tag.id, companyA.id);
+    expect(found._count.contactTags).toBe(0);
+    expect(found._count.ticketTags).toBe(0);
+  });
+});
+
+describe('TagsDomainService.hardDelete', () => {
+  let service: TagsDomainService;
+  let companyA: Company;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [TagsDomainService, { provide: PrismaService, useValue: getPrisma() }],
+    }).compile();
+    service = moduleRef.get(TagsDomainService);
+  });
+
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+    companyA = await createCompany(getPrisma());
+  });
+
+  it('deleta a tag de fato (findById subsequente lança 404)', async () => {
+    const tag = await createTag(getPrisma(), companyA.id);
+    await getPrisma().$transaction((tx) => service.hardDelete(tag.id, companyA.id, tx));
+    await expect(service.findById(tag.id, companyA.id)).rejects.toBeInstanceOf(NotFoundException);
+  });
+});

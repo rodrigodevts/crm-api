@@ -66,6 +66,25 @@ export class TagsDomainService {
     }
   }
 
+  async findByIdWithCounts(
+    id: string,
+    companyId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Tag & { _count: { contactTags: number; ticketTags: number } }> {
+    const db: Db = tx ?? this.prisma;
+    const tag = await db.tag.findFirst({
+      where: { id, companyId },
+      include: { _count: { select: { contactTags: true, ticketTags: true } } },
+    });
+    if (!tag) throw new NotFoundException('Tag não encontrada');
+    return tag;
+  }
+
+  async hardDelete(id: string, companyId: string, tx: Prisma.TransactionClient): Promise<void> {
+    await this.findById(id, companyId, tx);
+    await tx.tag.delete({ where: { id } });
+  }
+
   async softDelete(id: string, companyId: string, tx: Prisma.TransactionClient): Promise<void> {
     await this.findById(id, companyId, tx);
     await tx.tag.update({ where: { id }, data: { active: false } });
