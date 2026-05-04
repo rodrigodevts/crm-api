@@ -1,22 +1,14 @@
 import { BadRequestException } from '@nestjs/common';
 
-export interface DecodedCursor {
-  createdAt: Date;
-  id: string;
+export function encodeCursor(payload: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
 }
 
-export function encodeCursor(createdAt: Date, id: string): string {
-  return Buffer.from(JSON.stringify({ createdAt: createdAt.toISOString(), id }), 'utf8').toString(
-    'base64url',
-  );
-}
-
-export function decodeCursor(cursor: string | undefined): DecodedCursor | null {
+export function decodeCursor<T>(cursor: string | undefined): T | null {
   if (cursor === undefined) return null;
   try {
     const decoded = Buffer.from(cursor, 'base64url').toString('utf8');
-    const parsed = JSON.parse(decoded) as { createdAt: string; id: string };
-    return { createdAt: new Date(parsed.createdAt), id: parsed.id };
+    return JSON.parse(decoded) as T;
   } catch {
     throw new BadRequestException('Cursor inválido');
   }
