@@ -1,10 +1,15 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { ZodError } from 'zod';
 import { PrismaService } from '@/database/prisma.service';
 import { encodeCursor } from '@/common/cursor';
 import type { WorkingHoursDto } from '@/common/schemas/working-hours.schema';
 import type { CreateDepartmentDto } from '../schemas/create-department.schema';
 import type { ListDepartmentsQueryDto } from '../schemas/list-departments.schema';
+import {
+  UpdateDepartmentSchema,
+  type UpdateDepartmentDto,
+} from '../schemas/update-department.schema';
 import type {
   DepartmentListResponseDto,
   DepartmentResponseDto,
@@ -32,8 +37,7 @@ export class DepartmentsApplicationService {
     if (input.outOfHoursMessage !== undefined)
       domainInput.outOfHoursMessage = input.outOfHoursMessage;
     if (input.workingHours !== undefined) {
-      domainInput.workingHours =
-        input.workingHours === null ? null : (input.workingHours);
+      domainInput.workingHours = input.workingHours === null ? null : input.workingHours;
     }
     if (input.slaResponseMinutes !== undefined)
       domainInput.slaResponseMinutes = input.slaResponseMinutes;
@@ -78,6 +82,60 @@ export class DepartmentsApplicationService {
   async findById(id: string, companyId: string): Promise<DepartmentDetailResponseDto> {
     const dept = await this.domain.findByIdWithUsers(id, companyId);
     return this.toDetailDto(dept);
+  }
+
+  async update(
+    id: string,
+    companyId: string,
+    input: UpdateDepartmentDto,
+  ): Promise<DepartmentResponseDto> {
+    // Re-parse explícito (defesa-em-profundidade contra ZodValidationPipe global
+    // não enforçar .strict() quando o schema é consumido via createZodDto).
+    // Padrão Sprint 0.4 (PATCH /me) e 0.5 (PATCH /companies/me + PATCH /:id).
+    try {
+      UpdateDepartmentSchema.parse(input);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        throw new BadRequestException({
+          message: 'Validação falhou',
+          errors: error.issues.map((i) => ({
+            field: i.path.join('.') || '<root>',
+            message: i.message,
+            code: i.code,
+          })),
+        });
+      }
+      throw error;
+    }
+
+    const patch: Prisma.DepartmentUpdateInput = {};
+    if (input.name !== undefined) patch.name = input.name;
+    if (input.active !== undefined) patch.active = input.active;
+    if ('greetingMessage' in input) patch.greetingMessage = input.greetingMessage ?? null;
+    if ('outOfHoursMessage' in input) patch.outOfHoursMessage = input.outOfHoursMessage ?? null;
+    if ('workingHours' in input) {
+      patch.workingHours = input.workingHours ?? Prisma.DbNull;
+    }
+    if ('slaResponseMinutes' in input) {
+      patch.slaResponseMinutes = input.slaResponseMinutes ?? null;
+    }
+    if ('slaResolutionMinutes' in input) {
+      patch.slaResolutionMinutes = input.slaResolutionMinutes ?? null;
+    }
+    if (input.distributionMode !== undefined) patch.distributionMode = input.distributionMode;
+
+    try {
+      const department = await this.prisma.$transaction((tx) =>
+        this.domain.update(id, companyId, patch, tx),
+      );
+      return this.toDto(department);
+    } catch (err) {
+      throw this.mapConflict(err);
+    }
+  }
+
+  async softDelete(id: string, companyId: string): Promise<void> {
+    await this.prisma.$transaction((tx) => this.domain.softDelete(id, companyId, tx));
   }
 
   private toDto(d: DepartmentEntity): DepartmentResponseDto {
