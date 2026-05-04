@@ -104,4 +104,40 @@ describe('TagsDomainService.list', () => {
     expect(items).toHaveLength(1);
     expect(items[0]!.name).toBe('Cliente VIP');
   });
+
+  it('scope=TICKET retorna TICKET + BOTH (semântica de aplicabilidade)', async () => {
+    await createTag(getPrisma(), companyA.id, { name: 'T', scope: 'TICKET' });
+    await createTag(getPrisma(), companyA.id, { name: 'C', scope: 'CONTACT' });
+    await createTag(getPrisma(), companyA.id, { name: 'B', scope: 'BOTH' });
+    const { items } = await service.list(
+      companyA.id,
+      { scope: 'TICKET', sort: 'name' },
+      { limit: 10 },
+    );
+    expect(items.map((t) => t.name).sort()).toEqual(['B', 'T']);
+  });
+
+  it('scope=CONTACT retorna CONTACT + BOTH', async () => {
+    await createTag(getPrisma(), companyA.id, { name: 'T', scope: 'TICKET' });
+    await createTag(getPrisma(), companyA.id, { name: 'C', scope: 'CONTACT' });
+    await createTag(getPrisma(), companyA.id, { name: 'B', scope: 'BOTH' });
+    const { items } = await service.list(
+      companyA.id,
+      { scope: 'CONTACT', sort: 'name' },
+      { limit: 10 },
+    );
+    expect(items.map((t) => t.name).sort()).toEqual(['B', 'C']);
+  });
+
+  it('scope=BOTH retorna apenas BOTH (literal)', async () => {
+    await createTag(getPrisma(), companyA.id, { name: 'T', scope: 'TICKET' });
+    await createTag(getPrisma(), companyA.id, { name: 'B', scope: 'BOTH' });
+    const { items } = await service.list(
+      companyA.id,
+      { scope: 'BOTH', sort: 'createdAt' },
+      { limit: 10 },
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]!.name).toBe('B');
+  });
 });
