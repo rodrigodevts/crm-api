@@ -482,5 +482,152 @@ describe('DepartmentsController (e2e) — sad paths', () => {
   });
 });
 
+describe('DepartmentsController (e2e) — multi-tenant isolation', () => {
+  let app: NestFastifyApplication;
+  let companyA: Company;
+  let companyB: Company;
+  let adminA: { user: User; password: string };
+  let adminB: { user: User; password: string };
+  let agentB: { user: User; password: string };
+  let deptA: Department;
+  let tokenAdminB: string;
+  let tokenAgentB: string;
+
+  beforeAll(async () => {
+    app = await bootstrapTestApp();
+  });
+  afterAll(async () => {
+    await app.close();
+  });
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+    companyA = await createCompany(getPrisma());
+    companyB = await createCompany(getPrisma());
+    adminA = await createUser(getPrisma(), companyA.id, { role: 'ADMIN' });
+    adminB = await createUser(getPrisma(), companyB.id, { role: 'ADMIN' });
+    agentB = await createUser(getPrisma(), companyB.id, { role: 'AGENT' });
+    deptA = await createDepartment(getPrisma(), companyA.id, { name: 'Suporte A' });
+    // adminA login não é necessário pros casos cross-tenant; só usado pra confirmar setup
+    await loginAs(app, adminA.user.email, adminA.password);
+    ({ accessToken: tokenAdminB } = await loginAs(app, adminB.user.email, adminB.password));
+    ({ accessToken: tokenAgentB } = await loginAs(app, agentB.user.email, agentB.password));
+  });
+
+  it('ADMIN do tenant B não vê depto do tenant A no GET /:id (404)', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/v1/departments/${deptA.id}`,
+      headers: { authorization: `Bearer ${tokenAdminB}` },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('ADMIN do tenant B não consegue PATCH em depto do tenant A (404)', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/departments/${deptA.id}`,
+      headers: { authorization: `Bearer ${tokenAdminB}` },
+      payload: { name: 'Hijack' },
+    });
+    expect(res.statusCode).toBe(404);
+    // Confirmar que o name não mudou no banco
+    const fromDb = await getPrisma().department.findUnique({ where: { id: deptA.id } });
+    expect(fromDb?.name).toBe('Suporte A');
+  });
+
+  it('ADMIN do tenant B não consegue DELETE em depto do tenant A (404)', async () => {
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/departments/${deptA.id}`,
+      headers: { authorization: `Bearer ${tokenAdminB}` },
+    });
+    expect(res.statusCode).toBe(404);
+    const fromDb = await getPrisma().department.findUnique({ where: { id: deptA.id } });
+    expect(fromDb?.deletedAt).toBeNull();
+  });
+
+  it('AGENT do tenant B não vê depto do tenant A na listagem', async () => {
+    await createDepartment(getPrisma(), companyB.id, { name: 'Vendas B' });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/departments',
+      headers: { authorization: `Bearer ${tokenAgentB}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const names = res.json<ListResponse>().items.map((d) => d.name);
+    expect(names).toEqual(['Vendas B']);
+    expect(names).not.toContain('Suporte A');
+  });
+});
+
+describe('DepartmentsController (e2e) — cross-feature with Users (Sprint 0.4 bridge)', () => {
+  let app: NestFastifyApplication;
+  let company: Company;
+  let admin: { user: User; password: string };
+  let agent: { user: User; password: string };
+  let tokenAdmin: string;
+  let tokenAgent: string;
+
+  beforeAll(async () => {
+    app = await bootstrapTestApp();
+  });
+  afterAll(async () => {
+    await app.close();
+  });
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+    company = await createCompany(getPrisma());
+    admin = await createUser(getPrisma(), company.id, { role: 'ADMIN' });
+    agent = await createUser(getPrisma(), company.id, { role: 'AGENT' });
+    ({ accessToken: tokenAdmin } = await loginAs(app, admin.user.email, admin.password));
+    ({ accessToken: tokenAgent } = await loginAs(app, agent.user.email, agent.password));
+  });
+
+  it('PATCH /users/:id { departmentIds } → GET /departments/:id retorna o user', async () => {
+    const dept = await createDepartment(getPrisma(), company.id, { name: 'Suporte' });
+
+    const patchRes = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/users/${agent.user.id}`,
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { departmentIds: [dept.id] },
+    });
+    expect(patchRes.statusCode).toBe(200);
+
+    const getRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/departments/${dept.id}`,
+      headers: { authorization: `Bearer ${tokenAgent}` },
+    });
+    expect(getRes.statusCode).toBe(200);
+    expect(getRes.json<DepartmentDetailDto>().users).toEqual([
+      { id: agent.user.id, name: agent.user.name, role: 'AGENT' },
+    ]);
+  });
+
+  it('DELETE /departments/:id → GET /users/:id não inclui o depto removido', async () => {
+    const dept = await createDepartment(getPrisma(), company.id);
+    await getPrisma().userDepartment.create({
+      data: { userId: agent.user.id, departmentId: dept.id },
+    });
+
+    const delRes = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/departments/${dept.id}`,
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+    });
+    expect(delRes.statusCode).toBe(204);
+
+    const userRes = await app.inject({
+      method: 'GET',
+      url: `/api/v1/users/${agent.user.id}`,
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+    });
+    expect(userRes.statusCode).toBe(200);
+    expect(userRes.json<{ departments: unknown[] }>().departments).toEqual([]);
+  });
+});
+
 // Re-export interfaces para reuso nas próximas tasks (evita redefinir).
 export type { DepartmentDto, DepartmentDetailDto, ListResponse, ErrorBody };
