@@ -270,3 +270,43 @@ describe('TagsDomainService.update', () => {
     expect(updated.name).toBe('Same');
   });
 });
+
+describe('TagsDomainService.softDelete', () => {
+  let service: TagsDomainService;
+  let companyA: Company;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [TagsDomainService, { provide: PrismaService, useValue: getPrisma() }],
+    }).compile();
+    service = moduleRef.get(TagsDomainService);
+  });
+
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+    companyA = await createCompany(getPrisma());
+  });
+
+  it('marca active=false', async () => {
+    const tag = await createTag(getPrisma(), companyA.id, { active: true });
+    await getPrisma().$transaction((tx) => service.softDelete(tag.id, companyA.id, tx));
+    const after = await getPrisma().tag.findUnique({ where: { id: tag.id } });
+    expect(after!.active).toBe(false);
+  });
+
+  it('idempotente — chamar duas vezes não falha', async () => {
+    const tag = await createTag(getPrisma(), companyA.id, { active: true });
+    await getPrisma().$transaction((tx) => service.softDelete(tag.id, companyA.id, tx));
+    await getPrisma().$transaction((tx) => service.softDelete(tag.id, companyA.id, tx));
+    const after = await getPrisma().tag.findUnique({ where: { id: tag.id } });
+    expect(after!.active).toBe(false);
+  });
+
+  it('lança 404 se tag não existe', async () => {
+    await expect(
+      getPrisma().$transaction((tx) =>
+        service.softDelete('00000000-0000-0000-0000-000000000000', companyA.id, tx),
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+});

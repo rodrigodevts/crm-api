@@ -66,6 +66,11 @@ export class TagsDomainService {
     }
   }
 
+  async softDelete(id: string, companyId: string, tx: Prisma.TransactionClient): Promise<void> {
+    await this.findById(id, companyId, tx);
+    await tx.tag.update({ where: { id }, data: { active: false } });
+  }
+
   async update(
     id: string,
     companyId: string,
