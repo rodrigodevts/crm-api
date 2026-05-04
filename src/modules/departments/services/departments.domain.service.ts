@@ -1,31 +1,68 @@
-import { Injectable, NotImplementedException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, type Department } from '@prisma/client';
+import { PrismaService } from '@/database/prisma.service';
+
+type Db = PrismaService | Prisma.TransactionClient;
 
 @Injectable()
 export class DepartmentsDomainService {
-  // TODO: injetar PrismaService quando criado o módulo Prisma
+  constructor(private readonly prisma: PrismaService) {}
 
-  list(_companyId: string): Promise<unknown[]> {
-    // TODO: tx.departments.findMany({ where: { companyId, ... } })
-    throw new NotImplementedException();
+  async findById(
+    id: string,
+    companyId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<Department> {
+    const db: Db = tx ?? this.prisma;
+    const dept = await db.department.findFirst({
+      where: { id, companyId, deletedAt: null },
+    });
+    if (!dept) {
+      throw new NotFoundException('Departamento não encontrado');
+    }
+    return dept;
   }
 
-  getById(_id: string, _companyId: string): Promise<unknown> {
-    // TODO: tx.departments.findFirstOrThrow({ where: { id, companyId } })
-    throw new NotImplementedException();
+  async findByIdWithUsers(
+    id: string,
+    companyId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<
+    Department & {
+      users: Array<{
+        user: { id: string; name: string; role: 'SUPER_ADMIN' | 'ADMIN' | 'SUPERVISOR' | 'AGENT' };
+      }>;
+    }
+  > {
+    const db: Db = tx ?? this.prisma;
+    const dept = await db.department.findFirst({
+      where: { id, companyId, deletedAt: null },
+      include: {
+        users: {
+          where: { user: { deletedAt: null } },
+          include: {
+            user: { select: { id: true, name: true, role: true } },
+          },
+        },
+      },
+    });
+    if (!dept) {
+      throw new NotFoundException('Departamento não encontrado');
+    }
+    return dept;
   }
 
-  create(_companyId: string, _input: unknown): Promise<unknown> {
-    // TODO: regra de negócio + tx.departments.create
-    throw new NotImplementedException();
-  }
-
-  update(_id: string, _companyId: string, _input: unknown): Promise<unknown> {
-    // TODO: regra de negócio + tx.departments.update
-    throw new NotImplementedException();
-  }
-
-  remove(_id: string, _companyId: string): Promise<void> {
-    // TODO: tx.departments.update({ data: { deletedAt: new Date() } })
-    throw new NotImplementedException();
+  async assertNameAvailable(
+    name: string,
+    companyId: string,
+    tx: Prisma.TransactionClient,
+    exceptId?: string,
+  ): Promise<void> {
+    const existing = await tx.department.findFirst({
+      where: { companyId, name, deletedAt: null },
+    });
+    if (existing && existing.id !== exceptId) {
+      throw new ConflictException('Já existe um departamento com este nome');
+    }
   }
 }
