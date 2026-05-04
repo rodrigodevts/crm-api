@@ -47,3 +47,61 @@ describe('TagsDomainService.findById', () => {
     await expect(service.findById(tag.id, companyA.id)).rejects.toBeInstanceOf(NotFoundException);
   });
 });
+
+describe('TagsDomainService.list', () => {
+  let service: TagsDomainService;
+  let companyA: Company;
+  let companyB: Company;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [TagsDomainService, { provide: PrismaService, useValue: getPrisma() }],
+    }).compile();
+    service = moduleRef.get(TagsDomainService);
+  });
+
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+    companyA = await createCompany(getPrisma());
+    companyB = await createCompany(getPrisma());
+  });
+
+  it('retorna apenas tags do tenant solicitado (multi-tenant)', async () => {
+    await createTag(getPrisma(), companyA.id, { name: 'A1' });
+    await createTag(getPrisma(), companyB.id, { name: 'B1' });
+    const { items } = await service.list(companyA.id, { sort: 'createdAt' }, { limit: 10 });
+    expect(items).toHaveLength(1);
+    expect(items[0]!.name).toBe('A1');
+  });
+
+  it('sem filtro de active retorna ativas e inativas', async () => {
+    await createTag(getPrisma(), companyA.id, { name: 'Ativa', active: true });
+    await createTag(getPrisma(), companyA.id, { name: 'Inativa', active: false });
+    const { items } = await service.list(companyA.id, { sort: 'createdAt' }, { limit: 10 });
+    expect(items).toHaveLength(2);
+  });
+
+  it('filtro active=true retorna apenas ativas', async () => {
+    await createTag(getPrisma(), companyA.id, { name: 'Ativa', active: true });
+    await createTag(getPrisma(), companyA.id, { name: 'Inativa', active: false });
+    const { items } = await service.list(
+      companyA.id,
+      { active: true, sort: 'createdAt' },
+      { limit: 10 },
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]!.name).toBe('Ativa');
+  });
+
+  it('filtro search é case-insensitive contains', async () => {
+    await createTag(getPrisma(), companyA.id, { name: 'Cliente VIP' });
+    await createTag(getPrisma(), companyA.id, { name: 'Suporte' });
+    const { items } = await service.list(
+      companyA.id,
+      { search: 'vip', sort: 'createdAt' },
+      { limit: 10 },
+    );
+    expect(items).toHaveLength(1);
+    expect(items[0]!.name).toBe('Cliente VIP');
+  });
+});
