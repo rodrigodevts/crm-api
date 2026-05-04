@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createZodDto } from 'nestjs-zod';
-import { WorkingHoursSchema } from './working-hours.schema';
+import { WorkingHoursSchema } from '@/common/schemas/working-hours.schema';
 
 export const UpdateCompanySchema = z
   .object({
