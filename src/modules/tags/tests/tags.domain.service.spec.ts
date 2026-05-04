@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Test } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import type { Company } from '@prisma/client';
@@ -17,10 +17,6 @@ describe('TagsDomainService.findById', () => {
       providers: [TagsDomainService, { provide: PrismaService, useValue: getPrisma() }],
     }).compile();
     service = moduleRef.get(TagsDomainService);
-  });
-
-  afterAll(async () => {
-    await truncateAll(getPrisma());
   });
 
   beforeEach(async () => {
