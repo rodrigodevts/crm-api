@@ -8,8 +8,8 @@ export const TagResponseSchema = z.object({
   color: z.string(),
   scope: z.enum(['CONTACT', 'TICKET', 'BOTH']),
   active: z.boolean(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
 });
 
 export class TagResponseDto extends createZodDto(TagResponseSchema) {}
