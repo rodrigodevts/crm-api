@@ -219,3 +219,54 @@ describe('TagsDomainService.create', () => {
     ).rejects.toThrow(/Já existe uma tag/i);
   });
 });
+
+describe('TagsDomainService.update', () => {
+  let service: TagsDomainService;
+  let companyA: Company;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [TagsDomainService, { provide: PrismaService, useValue: getPrisma() }],
+    }).compile();
+    service = moduleRef.get(TagsDomainService);
+  });
+
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+    companyA = await createCompany(getPrisma());
+  });
+
+  it('atualiza name, color, scope, active', async () => {
+    const tag = await createTag(getPrisma(), companyA.id, { name: 'Old' });
+    const updated = await getPrisma().$transaction((tx) =>
+      service.update(
+        tag.id,
+        companyA.id,
+        { name: 'New', color: '#123456', scope: 'TICKET', active: false },
+        tx,
+      ),
+    );
+    expect(updated.name).toBe('New');
+    expect(updated.color).toBe('#123456');
+    expect(updated.scope).toBe('TICKET');
+    expect(updated.active).toBe(false);
+  });
+
+  it('rename para nome de outra tag do mesmo tenant lança 409', async () => {
+    await createTag(getPrisma(), companyA.id, { name: 'Existing' });
+    const target = await createTag(getPrisma(), companyA.id, { name: 'Target' });
+    await expect(
+      getPrisma().$transaction((tx) =>
+        service.update(target.id, companyA.id, { name: 'Existing' }, tx),
+      ),
+    ).rejects.toThrow(/Já existe uma tag/i);
+  });
+
+  it('rename para mesmo nome (no-op) é permitido', async () => {
+    const tag = await createTag(getPrisma(), companyA.id, { name: 'Same' });
+    const updated = await getPrisma().$transaction((tx) =>
+      service.update(tag.id, companyA.id, { name: 'Same' }, tx),
+    );
+    expect(updated.name).toBe('Same');
+  });
+});

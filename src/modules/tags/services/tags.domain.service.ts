@@ -66,6 +66,19 @@ export class TagsDomainService {
     }
   }
 
+  async update(
+    id: string,
+    companyId: string,
+    patch: Prisma.TagUpdateInput,
+    tx: Prisma.TransactionClient,
+  ): Promise<Tag> {
+    const existing = await this.findById(id, companyId, tx);
+    if (typeof patch.name === 'string' && patch.name !== existing.name) {
+      await this.assertNameAvailable(patch.name, companyId, tx, id);
+    }
+    return tx.tag.update({ where: { id }, data: patch });
+  }
+
   async list(
     companyId: string,
     filters: ListFilters,
