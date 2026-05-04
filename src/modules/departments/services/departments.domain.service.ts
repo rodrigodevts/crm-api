@@ -10,9 +10,24 @@ import { decodeCursor } from '@/common/cursor';
 
 type Db = PrismaService | Prisma.TransactionClient;
 
-type ListFilters = { active?: boolean; search?: string; sort: 'createdAt' | 'name' };
-type ListPagination = { cursor?: string; limit: number };
+type ListFilters = {
+  active?: boolean | undefined;
+  search?: string | undefined;
+  sort: 'createdAt' | 'name';
+};
+type ListPagination = { cursor?: string | undefined; limit: number };
 type ListResult = { items: Department[]; hasMore: boolean };
+
+export type CreateDepartmentInput = {
+  name: string;
+  active?: boolean;
+  greetingMessage?: string | null | undefined;
+  outOfHoursMessage?: string | null | undefined;
+  workingHours?: Prisma.InputJsonValue | null | undefined;
+  slaResponseMinutes?: number | null | undefined;
+  slaResolutionMinutes?: number | null | undefined;
+  distributionMode?: Prisma.DepartmentUncheckedCreateInput['distributionMode'];
+};
 
 @Injectable()
 export class DepartmentsDomainService {
@@ -115,12 +130,34 @@ export class DepartmentsDomainService {
   }
 
   async create(
-    input: Prisma.DepartmentUncheckedCreateInput,
+    input: CreateDepartmentInput,
     companyId: string,
     tx: Prisma.TransactionClient,
   ): Promise<Department> {
     await this.assertNameAvailable(input.name, companyId, tx);
-    return tx.department.create({ data: { ...input, companyId } });
+    return tx.department.create({
+      data: {
+        companyId,
+        name: input.name,
+        ...(input.active !== undefined ? { active: input.active } : {}),
+        ...(input.greetingMessage !== undefined ? { greetingMessage: input.greetingMessage } : {}),
+        ...(input.outOfHoursMessage !== undefined
+          ? { outOfHoursMessage: input.outOfHoursMessage }
+          : {}),
+        ...(input.workingHours !== undefined
+          ? { workingHours: input.workingHours === null ? Prisma.DbNull : input.workingHours }
+          : {}),
+        ...(input.slaResponseMinutes !== undefined
+          ? { slaResponseMinutes: input.slaResponseMinutes }
+          : {}),
+        ...(input.slaResolutionMinutes !== undefined
+          ? { slaResolutionMinutes: input.slaResolutionMinutes }
+          : {}),
+        ...(input.distributionMode !== undefined
+          ? { distributionMode: input.distributionMode }
+          : {}),
+      },
+    });
   }
 
   async update(
