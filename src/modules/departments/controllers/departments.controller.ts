@@ -3,57 +3,73 @@ import {
   Controller,
   Delete,
   Get,
-  NotImplementedException,
+  HttpCode,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { ZodSerializerDto } from 'nestjs-zod';
-import { DepartmentsApplicationService } from '../services/departments.application.service';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { CurrentCompany } from '@/common/decorators/current-company.decorator';
 import { CreateDepartmentDtoClass } from '../schemas/create-department.schema';
 import { UpdateDepartmentDtoClass } from '../schemas/update-department.schema';
-import { DepartmentResponseDtoClass } from '../schemas/department-response.schema';
+import {
+  ListDepartmentsQuerySchema,
+  type ListDepartmentsQueryDto,
+} from '../schemas/list-departments.schema';
+import {
+  DepartmentListResponseDtoClass,
+  DepartmentResponseDtoClass,
+} from '../schemas/department-response.schema';
+import { DepartmentDetailResponseDtoClass } from '../schemas/department-detail-response.schema';
+import { DepartmentsApplicationService } from '../services/departments.application.service';
 
 @ApiTags('departments')
 @Controller('departments')
 export class DepartmentsController {
-  constructor(private readonly applicationService: DepartmentsApplicationService) {}
+  constructor(private readonly app: DepartmentsApplicationService) {}
+
+  @Post()
+  @Roles('ADMIN')
+  @ZodSerializerDto(DepartmentResponseDtoClass)
+  async create(@Body() body: CreateDepartmentDtoClass, @CurrentCompany() companyId: string) {
+    return this.app.create(body, companyId);
+  }
 
   @Get()
-  @ZodSerializerDto(DepartmentResponseDtoClass)
-  list(): Promise<DepartmentResponseDtoClass[]> {
-    // TODO: extrair @CurrentCompany, paginar (cursor-based per api-conventions.md), chamar applicationService.list
-    throw new NotImplementedException();
+  @ZodSerializerDto(DepartmentListResponseDtoClass)
+  async list(@Query() rawQuery: Record<string, string>, @CurrentCompany() companyId: string) {
+    const query: ListDepartmentsQueryDto = ListDepartmentsQuerySchema.parse(rawQuery);
+    return this.app.list(companyId, query);
   }
 
   @Get(':id')
-  @ZodSerializerDto(DepartmentResponseDtoClass)
-  getById(@Param('id') _id: string): Promise<DepartmentResponseDtoClass> {
-    // TODO: implementar
-    throw new NotImplementedException();
-  }
-
-  @Post()
-  @ZodSerializerDto(DepartmentResponseDtoClass)
-  create(@Body() _input: CreateDepartmentDtoClass): Promise<DepartmentResponseDtoClass> {
-    // TODO: implementar
-    throw new NotImplementedException();
+  @ZodSerializerDto(DepartmentDetailResponseDtoClass)
+  async findById(@Param('id', ParseUUIDPipe) id: string, @CurrentCompany() companyId: string) {
+    return this.app.findById(id, companyId);
   }
 
   @Patch(':id')
+  @Roles('ADMIN')
   @ZodSerializerDto(DepartmentResponseDtoClass)
-  update(
-    @Param('id') _id: string,
-    @Body() _input: UpdateDepartmentDtoClass,
-  ): Promise<DepartmentResponseDtoClass> {
-    // TODO: implementar
-    throw new NotImplementedException();
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: UpdateDepartmentDtoClass,
+    @CurrentCompany() companyId: string,
+  ) {
+    return this.app.update(id, companyId, body);
   }
 
   @Delete(':id')
-  remove(@Param('id') _id: string): Promise<void> {
-    // TODO: implementar
-    throw new NotImplementedException();
+  @Roles('ADMIN')
+  @HttpCode(204)
+  async softDelete(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentCompany() companyId: string,
+  ): Promise<void> {
+    await this.app.softDelete(id, companyId);
   }
 }
