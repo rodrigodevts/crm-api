@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, type Tag, type TagScope } from '@prisma/client';
 import { PrismaService } from '@/database/prisma.service';
 import { decodeCursor } from '@/common/cursor';
@@ -14,6 +19,13 @@ type ListFilters = {
 type ListPagination = { cursor?: string | undefined; limit: number };
 type ListResult = { items: Tag[]; hasMore: boolean };
 
+export type CreateTagInput = {
+  name: string;
+  color: string;
+  scope?: TagScope;
+  active?: boolean;
+};
+
 @Injectable()
 export class TagsDomainService {
   constructor(private readonly prisma: PrismaService) {}
@@ -23,6 +35,35 @@ export class TagsDomainService {
     const tag = await db.tag.findFirst({ where: { id, companyId } });
     if (!tag) throw new NotFoundException('Tag não encontrada');
     return tag;
+  }
+
+  async create(
+    input: CreateTagInput,
+    companyId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<Tag> {
+    await this.assertNameAvailable(input.name, companyId, tx);
+    return tx.tag.create({
+      data: {
+        companyId,
+        name: input.name,
+        color: input.color,
+        ...(input.scope !== undefined ? { scope: input.scope } : {}),
+        ...(input.active !== undefined ? { active: input.active } : {}),
+      },
+    });
+  }
+
+  async assertNameAvailable(
+    name: string,
+    companyId: string,
+    tx: Prisma.TransactionClient,
+    exceptId?: string,
+  ): Promise<void> {
+    const existing = await tx.tag.findFirst({ where: { companyId, name } });
+    if (existing && existing.id !== exceptId) {
+      throw new ConflictException('Já existe uma tag com este nome');
+    }
   }
 
   async list(

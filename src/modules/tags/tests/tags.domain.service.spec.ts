@@ -181,3 +181,41 @@ describe('TagsDomainService.list', () => {
     expect(seen.sort()).toEqual(['A', 'B', 'C', 'D', 'E']);
   });
 });
+
+describe('TagsDomainService.create', () => {
+  let service: TagsDomainService;
+  let companyA: Company;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [TagsDomainService, { provide: PrismaService, useValue: getPrisma() }],
+    }).compile();
+    service = moduleRef.get(TagsDomainService);
+  });
+
+  beforeEach(async () => {
+    await truncateAll(getPrisma());
+    companyA = await createCompany(getPrisma());
+  });
+
+  it('cria tag com defaults (scope=BOTH, active=true)', async () => {
+    const tag = await getPrisma().$transaction((tx) =>
+      service.create({ name: 'Nova', color: '#AABBCC' }, companyA.id, tx),
+    );
+    expect(tag.name).toBe('Nova');
+    expect(tag.scope).toBe('BOTH');
+    expect(tag.active).toBe(true);
+    expect(tag.color).toBe('#AABBCC');
+  });
+
+  it('lança 409 ao tentar criar com nome duplicado no mesmo tenant', async () => {
+    await getPrisma().$transaction((tx) =>
+      service.create({ name: 'Dup', color: '#000000' }, companyA.id, tx),
+    );
+    await expect(
+      getPrisma().$transaction((tx) =>
+        service.create({ name: 'Dup', color: '#FFFFFF' }, companyA.id, tx),
+      ),
+    ).rejects.toThrow(/Já existe uma tag/i);
+  });
+});
