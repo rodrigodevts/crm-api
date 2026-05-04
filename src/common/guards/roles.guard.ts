@@ -8,7 +8,7 @@ import { Reflector } from '@nestjs/core';
 import type { User, UserRole } from '@prisma/client';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 
-const WEIGHT: Record<UserRole, number> = {
+export const ROLE_WEIGHT: Record<UserRole, number> = {
   AGENT: 1,
   SUPERVISOR: 2,
   ADMIN: 3,
@@ -32,8 +32,8 @@ export class RolesGuard implements CanActivate {
     const user = request.user;
     if (!user) throw new ForbiddenException(FORBIDDEN_MESSAGE);
 
-    const minRequired = Math.min(...required.map((role) => WEIGHT[role]));
-    if (WEIGHT[user.role] < minRequired) {
+    const minRequired = Math.min(...required.map((role) => ROLE_WEIGHT[role]));
+    if (ROLE_WEIGHT[user.role] < minRequired) {
       throw new ForbiddenException(FORBIDDEN_MESSAGE);
     }
     return true;
