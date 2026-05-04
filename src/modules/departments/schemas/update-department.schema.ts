@@ -1,10 +1,21 @@
+import { DepartmentDistributionMode } from '@prisma/client';
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
+import { WorkingHoursSchema } from '@/common/schemas/working-hours.schema';
 
-export const UpdateDepartmentsSchema = z
+export const UpdateDepartmentSchema = z
   .object({
-    // TODO: definir campos do payload
+    name: z.string().trim().min(2).max(100).optional(),
+    active: z.boolean().optional(),
+    greetingMessage: z.string().max(2000).nullable().optional(),
+    outOfHoursMessage: z.string().max(2000).nullable().optional(),
+    workingHours: WorkingHoursSchema.nullable().optional(),
+    slaResponseMinutes: z.number().int().min(1).max(43200).nullable().optional(),
+    slaResolutionMinutes: z.number().int().min(1).max(43200).nullable().optional(),
+    distributionMode: z.nativeEnum(DepartmentDistributionMode).optional(),
   })
-  .describe('TODO: descrever payload de atualização de departments');
+  .strict()
+  .describe('Campos editáveis em departamento. Strict.');
 
-export class UpdateDepartmentsDto extends createZodDto(UpdateDepartmentsSchema) {}
+export type UpdateDepartmentDto = z.infer<typeof UpdateDepartmentSchema>;
+export class UpdateDepartmentDtoClass extends createZodDto(UpdateDepartmentSchema) {}
