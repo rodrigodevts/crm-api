@@ -114,6 +114,37 @@ export class DepartmentsDomainService {
     return { items: hasMore ? items.slice(0, pagination.limit) : items, hasMore };
   }
 
+  async create(
+    input: Prisma.DepartmentUncheckedCreateInput,
+    companyId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<Department> {
+    await this.assertNameAvailable(input.name, companyId, tx);
+    return tx.department.create({ data: { ...input, companyId } });
+  }
+
+  async update(
+    id: string,
+    companyId: string,
+    patch: Prisma.DepartmentUpdateInput,
+    tx: Prisma.TransactionClient,
+  ): Promise<Department> {
+    const existing = await this.findById(id, companyId, tx);
+    if (typeof patch.name === 'string' && patch.name !== existing.name) {
+      await this.assertNameAvailable(patch.name, companyId, tx, id);
+    }
+    return tx.department.update({ where: { id }, data: patch });
+  }
+
+  async softDelete(id: string, companyId: string, tx: Prisma.TransactionClient): Promise<void> {
+    await this.findById(id, companyId, tx);
+    await tx.userDepartment.deleteMany({ where: { departmentId: id } });
+    await tx.department.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
+
   async assertNameAvailable(
     name: string,
     companyId: string,

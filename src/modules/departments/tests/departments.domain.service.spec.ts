@@ -135,4 +135,50 @@ describe('DepartmentsDomainService', () => {
       ).rejects.toThrow(BadRequestException);
     });
   });
+
+  describe('softDelete', () => {
+    it('chama userDepartment.deleteMany ANTES de update (atomicidade da $transaction)', async () => {
+      const dept = { id: 'd1', companyId: 'c1', deletedAt: null };
+      tx.department.findFirst.mockResolvedValue(dept);
+      tx.userDepartment.deleteMany.mockResolvedValue({ count: 2 });
+      tx.department.update.mockResolvedValue({ ...dept, deletedAt: new Date() });
+
+      await service.softDelete('d1', 'c1', tx as never);
+
+      // invocationCallOrder é um contador global crescente — comparar a ordem relativa
+      // garante que deleteMany foi chamado ANTES de update no mesmo tx.
+      const deleteCallOrder = tx.userDepartment.deleteMany.mock.invocationCallOrder[0]!;
+      const updateCallOrder = tx.department.update.mock.invocationCallOrder[0]!;
+      expect(deleteCallOrder).toBeLessThan(updateCallOrder);
+    });
+
+    it('lança NotFoundException quando depto não existe ou é de outro tenant', async () => {
+      tx.department.findFirst.mockResolvedValue(null);
+      await expect(service.softDelete('d1', 'c1', tx as never)).rejects.toThrow(NotFoundException);
+      expect(tx.userDepartment.deleteMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('update', () => {
+    it('skipa assertNameAvailable quando patch.name === existing.name', async () => {
+      const dept = { id: 'd1', companyId: 'c1', name: 'Suporte', deletedAt: null };
+      tx.department.findFirst.mockResolvedValueOnce(dept); // findById
+      tx.department.update.mockResolvedValue({ ...dept });
+
+      await service.update('d1', 'c1', { name: 'Suporte' }, tx as never);
+      // assertNameAvailable não foi chamado: findFirst só rodou 1x (do findById)
+      expect(tx.department.findFirst).toHaveBeenCalledTimes(1);
+    });
+
+    it('chama assertNameAvailable quando patch.name é diferente', async () => {
+      const dept = { id: 'd1', companyId: 'c1', name: 'Suporte', deletedAt: null };
+      tx.department.findFirst
+        .mockResolvedValueOnce(dept) // findById
+        .mockResolvedValueOnce(null); // assertNameAvailable
+      tx.department.update.mockResolvedValue({ ...dept, name: 'Atendimento' });
+
+      await service.update('d1', 'c1', { name: 'Atendimento' }, tx as never);
+      expect(tx.department.findFirst).toHaveBeenCalledTimes(2);
+    });
+  });
 });
