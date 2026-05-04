@@ -319,6 +319,23 @@ describe('DepartmentsController (e2e) — sad paths', () => {
     expect(res.json<ErrorBody>().message).toMatch(/Já existe um departamento/i);
   });
 
+  it('POST com nome de depto soft-deletado → 409 (constraint global)', async () => {
+    const dept = await createDepartment(getPrisma(), company.id, { name: 'Suporte' });
+    await getPrisma().department.update({
+      where: { id: dept.id },
+      data: { deletedAt: new Date() },
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/departments',
+      headers: { authorization: `Bearer ${tokenAdmin}` },
+      payload: { name: 'Suporte' },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json<ErrorBody>().message).toMatch(/Já existe um departamento/i);
+  });
+
   it('POST com chave extra (companyId) → 400 Unrecognized key', async () => {
     const res = await app.inject({
       method: 'POST',
@@ -486,7 +503,6 @@ describe('DepartmentsController (e2e) — multi-tenant isolation', () => {
   let app: NestFastifyApplication;
   let companyA: Company;
   let companyB: Company;
-  let adminA: { user: User; password: string };
   let adminB: { user: User; password: string };
   let agentB: { user: User; password: string };
   let deptA: Department;
@@ -503,12 +519,9 @@ describe('DepartmentsController (e2e) — multi-tenant isolation', () => {
     await truncateAll(getPrisma());
     companyA = await createCompany(getPrisma());
     companyB = await createCompany(getPrisma());
-    adminA = await createUser(getPrisma(), companyA.id, { role: 'ADMIN' });
     adminB = await createUser(getPrisma(), companyB.id, { role: 'ADMIN' });
     agentB = await createUser(getPrisma(), companyB.id, { role: 'AGENT' });
     deptA = await createDepartment(getPrisma(), companyA.id, { name: 'Suporte A' });
-    // adminA login não é necessário pros casos cross-tenant; só usado pra confirmar setup
-    await loginAs(app, adminA.user.email, adminA.password);
     ({ accessToken: tokenAdminB } = await loginAs(app, adminB.user.email, adminB.password));
     ({ accessToken: tokenAgentB } = await loginAs(app, agentB.user.email, agentB.password));
   });
