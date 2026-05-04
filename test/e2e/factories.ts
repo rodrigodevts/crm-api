@@ -1,5 +1,14 @@
 import * as bcrypt from 'bcrypt';
-import type { Company, Department, Plan, PrismaClient, User, UserRole } from '@prisma/client';
+import type {
+  Company,
+  Department,
+  DepartmentDistributionMode,
+  Plan,
+  Prisma,
+  PrismaClient,
+  User,
+  UserRole,
+} from '@prisma/client';
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 
 let counter = 0;
@@ -50,15 +59,33 @@ export async function createUser(
 export async function createDepartment(
   prisma: PrismaClient,
   companyId: string,
-  overrides: Partial<{ name: string; active: boolean }> = {},
+  overrides: Partial<{
+    name: string;
+    active: boolean;
+    distributionMode: DepartmentDistributionMode;
+    workingHours: Prisma.InputJsonValue;
+    slaResponseMinutes: number;
+    slaResolutionMinutes: number;
+    greetingMessage: string;
+    outOfHoursMessage: string;
+  }> = {},
 ): Promise<Department> {
-  return prisma.department.create({
-    data: {
-      companyId,
-      name: overrides.name ?? `Dept ${nextId()}`,
-      active: overrides.active ?? true,
-    },
-  });
+  const data: Prisma.DepartmentUncheckedCreateInput = {
+    companyId,
+    name: overrides.name ?? `Dept ${nextId()}`,
+    active: overrides.active ?? true,
+  };
+  if (overrides.distributionMode !== undefined) data.distributionMode = overrides.distributionMode;
+  if (overrides.workingHours !== undefined) data.workingHours = overrides.workingHours;
+  if (overrides.slaResponseMinutes !== undefined)
+    data.slaResponseMinutes = overrides.slaResponseMinutes;
+  if (overrides.slaResolutionMinutes !== undefined)
+    data.slaResolutionMinutes = overrides.slaResolutionMinutes;
+  if (overrides.greetingMessage !== undefined) data.greetingMessage = overrides.greetingMessage;
+  if (overrides.outOfHoursMessage !== undefined)
+    data.outOfHoursMessage = overrides.outOfHoursMessage;
+
+  return prisma.department.create({ data });
 }
 
 export async function loginAs(
