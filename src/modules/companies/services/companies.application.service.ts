@@ -18,7 +18,7 @@ import type { CreateCompanyInput } from '../schemas/create-company.schema';
 import type { ListCompaniesQueryInput } from '../schemas/list-companies.schema';
 import { UpdateCompanyMeDto, UpdateCompanyMeSchema } from '../schemas/update-company-me.schema';
 import { UpdateCompanyDto, UpdateCompanySchema } from '../schemas/update-company.schema';
-import { WorkingHoursSchema, type WorkingHoursDto } from '../schemas/working-hours.schema';
+import { WorkingHoursSchema, type WorkingHoursDto } from '@/common/schemas/working-hours.schema';
 import { CompaniesDomainService } from './companies.domain.service';
 
 const SLUG_DUPLICATED = 'Slug já em uso';

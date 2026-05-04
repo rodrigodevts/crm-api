@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { WorkingHoursSchema } from './working-hours.schema';
+import { WorkingHoursSchema } from '@/common/schemas/working-hours.schema';
 
 export const CompanyResponseSchema = z
   .object({
