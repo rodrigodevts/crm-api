@@ -1,6 +1,6 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PrismaService } from '@/database/prisma.service';
 import { DepartmentsDomainService } from '../services/departments.domain.service';
@@ -16,6 +16,10 @@ type Tx = {
     deleteMany: ReturnType<typeof vi.fn>;
   };
 };
+
+function encodeBadCursor(payload: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+}
 
 function makeTx(): Tx {
   return {
@@ -94,6 +98,41 @@ describe('DepartmentsDomainService', () => {
       expect(tx.department.findFirst).toHaveBeenCalledWith({
         where: { companyId: 'c1', name: 'Suporte', deletedAt: null },
       });
+    });
+  });
+
+  describe('list', () => {
+    it('lança BadRequestException pra cursor com shape errado quando sort=name', async () => {
+      await expect(
+        service.list(
+          'c1',
+          { active: true, sort: 'name' },
+          {
+            cursor: encodeBadCursor({ createdAt: '2026-05-03T00:00:00.000Z', id: 'a' }),
+            limit: 20,
+          },
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('lança BadRequestException pra cursor com shape errado quando sort=createdAt', async () => {
+      await expect(
+        service.list(
+          'c1',
+          { active: true, sort: 'createdAt' },
+          { cursor: encodeBadCursor({ name: 'Suporte', id: 'a' }), limit: 20 },
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('lança BadRequestException pra cursor base64 quebrado', async () => {
+      await expect(
+        service.list(
+          'c1',
+          { active: true, sort: 'createdAt' },
+          { cursor: '!!!quebrado!!!', limit: 20 },
+        ),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

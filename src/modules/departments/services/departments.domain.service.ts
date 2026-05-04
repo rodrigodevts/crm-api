@@ -1,8 +1,18 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, type Department } from '@prisma/client';
 import { PrismaService } from '@/database/prisma.service';
+import { decodeCursor } from '@/common/cursor';
 
 type Db = PrismaService | Prisma.TransactionClient;
+
+type ListFilters = { active?: boolean; search?: string; sort: 'createdAt' | 'name' };
+type ListPagination = { cursor?: string; limit: number };
+type ListResult = { items: Department[]; hasMore: boolean };
 
 @Injectable()
 export class DepartmentsDomainService {
@@ -50,6 +60,58 @@ export class DepartmentsDomainService {
       throw new NotFoundException('Departamento não encontrado');
     }
     return dept;
+  }
+
+  async list(
+    companyId: string,
+    filters: ListFilters,
+    pagination: ListPagination,
+  ): Promise<ListResult> {
+    const where: Prisma.DepartmentWhereInput = {
+      companyId,
+      deletedAt: null,
+      ...(filters.active !== undefined ? { active: filters.active } : {}),
+      ...(filters.search
+        ? { name: { contains: filters.search, mode: 'insensitive' as const } }
+        : {}),
+    };
+
+    if (filters.sort === 'name') {
+      const decoded = decodeCursor<{ name: string; id: string }>(pagination.cursor);
+      if (decoded !== null) {
+        if (typeof decoded.name !== 'string' || typeof decoded.id !== 'string') {
+          throw new BadRequestException('Cursor inválido');
+        }
+        where.OR = [{ name: { gt: decoded.name } }, { name: decoded.name, id: { gt: decoded.id } }];
+      }
+      const items = await this.prisma.department.findMany({
+        where,
+        orderBy: [{ name: 'asc' }, { id: 'asc' }],
+        take: pagination.limit + 1,
+      });
+      const hasMore = items.length > pagination.limit;
+      return { items: hasMore ? items.slice(0, pagination.limit) : items, hasMore };
+    }
+
+    // sort === 'createdAt'
+    const decoded = decodeCursor<{ createdAt: string; id: string }>(pagination.cursor);
+    if (decoded !== null) {
+      if (typeof decoded.createdAt !== 'string' || typeof decoded.id !== 'string') {
+        throw new BadRequestException('Cursor inválido');
+      }
+      const cursorDate = new Date(decoded.createdAt);
+      where.OR = [
+        { createdAt: { lt: cursorDate } },
+        { createdAt: cursorDate, id: { lt: decoded.id } },
+      ];
+    }
+    const items = await this.prisma.department.findMany({
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: pagination.limit + 1,
+    });
+    const hasMore = items.length > pagination.limit;
+    return { items: hasMore ? items.slice(0, pagination.limit) : items, hasMore };
   }
 
   async assertNameAvailable(
