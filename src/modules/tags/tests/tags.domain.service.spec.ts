@@ -140,4 +140,44 @@ describe('TagsDomainService.list', () => {
     expect(items).toHaveLength(1);
     expect(items[0]!.name).toBe('B');
   });
+
+  it('sort=name ordena alfabeticamente', async () => {
+    await createTag(getPrisma(), companyA.id, { name: 'C' });
+    await createTag(getPrisma(), companyA.id, { name: 'A' });
+    await createTag(getPrisma(), companyA.id, { name: 'B' });
+    const { items } = await service.list(companyA.id, { sort: 'name' }, { limit: 10 });
+    expect(items.map((t) => t.name)).toEqual(['A', 'B', 'C']);
+  });
+
+  it('sort=createdAt ordena desc (mais nova primeiro)', async () => {
+    const t1 = await createTag(getPrisma(), companyA.id, { name: 'T1' });
+    await new Promise((r) => setTimeout(r, 5));
+    const t2 = await createTag(getPrisma(), companyA.id, { name: 'T2' });
+    const { items } = await service.list(companyA.id, { sort: 'createdAt' }, { limit: 10 });
+    expect(items[0]!.id).toBe(t2.id);
+    expect(items[1]!.id).toBe(t1.id);
+  });
+
+  it('paginação cursor cobre todas as tags exatamente uma vez', async () => {
+    await createTag(getPrisma(), companyA.id, { name: 'A' });
+    await createTag(getPrisma(), companyA.id, { name: 'B' });
+    await createTag(getPrisma(), companyA.id, { name: 'C' });
+    await createTag(getPrisma(), companyA.id, { name: 'D' });
+    await createTag(getPrisma(), companyA.id, { name: 'E' });
+
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < 5; page++) {
+      const result = await service.list(
+        companyA.id,
+        { sort: 'name' },
+        cursor !== undefined ? { cursor, limit: 2 } : { limit: 2 },
+      );
+      seen.push(...result.items.map((t) => t.name));
+      if (!result.hasMore) break;
+      const last = result.items[result.items.length - 1]!;
+      cursor = Buffer.from(JSON.stringify({ name: last.name, id: last.id })).toString('base64url');
+    }
+    expect(seen.sort()).toEqual(['A', 'B', 'C', 'D', 'E']);
+  });
 });
